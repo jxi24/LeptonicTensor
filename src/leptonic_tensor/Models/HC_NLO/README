@@ -1,0 +1,121 @@
+# This is the README file for the HC_NLO_X0 UFO
+# Authors: F. Demartin, M. Zaro
+#   email: federico.demartin@uclouvain.be
+# Model version: 1.3
+
+
+___________________________
+***  IMPORTANT REMARKS  ***
+
+- Use with MG5_aMC 2.1.1 or later
+- Only for single X0 production and decay
+- 4F scheme with 'HC_NLO_X0' and 'HC_NLO_X0-4Fnoyb'
+     p,j = g u c d s u~ c~ d~ s~ 
+- 5F scheme with 'HC_NLO_X0-no_b_mass' and 'HC_NLO_X0-heft'
+     p,j = g u c d s b u~ c~ d~ s~ b~
+- Find below the correct instructions to generate a process
+
+
+____________________________________________
+***  INSTRUCTIONS TO GENERATE A PROCESS  ***
+
+[1] GLUON FUSION + 0,1,2 JETS (GF) at NLO-QCD [arXiv:1306.6464, arXiv:1407.5089]
+
+> import model HC_NLO_X0-heft
+> generate p p > x0 (j ...) / t [QCD]
+
+where '/ t' filters out diagrams with top loops, that are already
+accounted for by the X0-gluons effective couplings in the limit Mtop->inf.
+
+
+[2] WEAK VECTOR BOSON FUSION (VBF) at NLO-QCD [arXiv:1311.1829]
+
+> import model HC_NLO_X0(-no_b_mass)   
+> generate p p > x0 j j $$ w+ w- z / a [QCD]
+
+where '$$ w+ w- z' removes diagrams with W/Z in the s-channel, which 
+are included in VH production, and '/ a' removes diagrams with photons.
+
+Before you 'launch' the process, exit mg5_aMC, go to the output directory and 
+1) comment with a hash '#' the line
+  tests.append('check_poles')
+inside the file
+  bin/internal/amcatnlo_run_interface.py
+2) set to -1 the parameters 
+  'IRPoleCheckThreshold' and 'PrecisionVirtualAtRunTime'
+in the file
+   Cards/FKSparams.dat .
+
+
+[3] VECTOR BOSON ASSOCIATED PRODUCTION (VH) at NLO-QCD [arXiv:1311.1829]
+
+> import model HC_NLO_X0(-no_b_mass)  
+> generate p p > x0 l+ vl [QCD] 
+> add process p p > x0 l- vl~ [QCD] 
+> add process p p > x0 l+ l- / a [QCD] 
+
+where '/ a' removes diagrams with photons.
+
+
+[4] TOP PAIR ASSOCIATED PRODUCTION (ttH) at NLO-QCD [arXiv:1407.5089]
+
+> import model HC_NLO_X0(-no_b_mass)  
+> generate p p > x0 t t~ [QCD]    
+
+
+[5] SINGLE TOP ASSOCIATED PRODUCTION (tH) at NLO-QCD [arXiv:1504.00611]
+
+t-channel, 4-flavour scheme:
+> import model HC_NLO_X0-4Fnoyb
+> generate p p > x0 t b~ j $$ w+ w- [QCD]
+> add process p p > x0 t~ b j $$ w+ w- [QCD] 
+
+t-channel, 5-flavour scheme:
+> import model HC_NLO_X0-no_b_mass
+> generate p p > x0 t j $$ w+ w- [QCD]
+> add process p p > x0 t~ j $$ w+ w- [QCD] 
+
+s-channel:
+> import model HC_NLO_X0(-no_b_mass)
+> generate p p > w+ > x0 t b~ [QCD]
+> add process p p > w- > x0 t~ b [QCD]
+
+
+___________________
+***  CHANGELOG  ***
+
+1.3 (2015.08.26) 
+    - Fixed a conflict with MG5_aMC 2.3.2
+
+1.2 (2015.06.02) 
+    - Fixed a conflict with MadLoop for loop-induced processes
+    - Included instructions for single top + higgs production
+
+1.1 (2014.04.03) 
+    - Modified loop_particles attributes to be compliant with the new 
+      conventions of UFO@NLO, effective in MG5_aMC starting from v2.1.1.
+      In particular, use PDG code instead of particle name.
+      Changes affect the following files: object_library.py, particles.py.
+      Other minor changes in some files: __init__.py, CT_parameters, 
+      paramcard_heft.dat, restrict_heft.dat.
+
+1.0 (2014.01.27)
+    - Release
+
+
+__________________________
+***  ACKNOWLEDGEMENTS  ***
+
+This UFO model contains parts of the following models:
+- loop_sm   by V. Hirschi
+- heft   by N. Christensen, C. Duhr;
+- HC (HiggsCharacterisation)   by P. de Aquino, K. Mawatari.
+
+The R2 counterterms for the H-gluons vertices have firstly
+been computed by B. J. Page and R. Pittau [arXiv:1307.6142].
+
+F.D. thanks the following people for their support during the
+implementation and validation of this model:
+C. Degrande, R. Frederix, V. Hirschi, F. Maltoni, O. Mattelaer, 
+K. Mawatari, B. J. Page, T. Peraro, R. Pittau, M. Zaro.
+
