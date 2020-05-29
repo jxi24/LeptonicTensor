@@ -68,6 +68,7 @@ def main():
     print(pids1)
     vertex1 = model.vertex_map[tuple(pids1)]
     print(vertex1.lorentz[0].structure, vertex1.couplings[(0, 0)].value)
+    vertexA = vertex1.lorentz[0].structure.replace('3', 'mu').replace('2', 'e-').replace('1', 'e+')
 
     pids2 = [particles['mu+'].pid,
              particles['mu-'].pid,
@@ -76,9 +77,14 @@ def main():
     print(pids2)
     vertex2 = model.vertex_map[tuple(pids2)]
     print(vertex2.lorentz[0].structure, vertex2.couplings[(0, 0)].value)
+    vertexB = vertex2.lorentz[0].structure.replace('3', 'nu').replace('2', 'mu-').replace('1', 'mu+')
 
     propagator = model.propagator_map[particles['a'].propagator]
+    propagatorA = propagator.numerator.replace('1','mu').replace('2','nu') + '/' + propagator.denominator
     print("({})/({})".format(propagator.numerator, propagator.denominator))
+
+    amp = ['ubar(p2)', vertexA, 'v(p1)', propagatorA, 'vbar(p3)', vertexB, 'u(p4)']
+    print('*'.join(amp))
 
 
 if __name__ == '__main__':
