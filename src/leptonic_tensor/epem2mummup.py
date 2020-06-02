@@ -1,6 +1,7 @@
 import models
 import itertools
 import particle
+import feyn_rules
 
 
 class Model:
@@ -32,8 +33,8 @@ class Model:
             particles = vertex.particles
             # print(vertex.lorentz, particles)
             pids = []
-            for particle in particles:
-                pids.append(particle.pdg_code)
+            for part in particles:
+                pids.append(part.pdg_code)
             pids.sort()
             # print(pids)
             vert_map[tuple(pids)] = vertex
@@ -86,6 +87,9 @@ def main():
     amp = ['ubar(p2)', vertexA, 'v(p1)', propagatorA, 'vbar(p3)', vertexB, 'u(p4)']
     print('*'.join(amp))
 
+    amp1 = feyn_rules.FeynRules(model, incoming_particles, outgoing_particles, internal_particles)
+    print(particles['e-'].wavefunction[0])
+    print(amp1._amplitude())
 
 if __name__ == '__main__':
     main()
