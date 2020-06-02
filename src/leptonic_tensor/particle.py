@@ -12,10 +12,10 @@ class ParticleInfo:
         self.wavefunction = self._get_wavefunction()
 
     def __str__(self):
-        return '{}: {}, {}, {}, {}, {}, {}, {}, {}'.format(
+        return '{}: {}, {}, {}, {}, {}, {}, {}, {}, {}'.format(
             self.pid, self.name, self.antiname,
             self.mass, self.width, self.spin, self.icharge, self.charge,
-            self.propagator)
+            self.propagator, self.wavefunction)
 
     def _get_propagator(self, ufo_particle):
         if not hasattr(ufo_particle, 'propagator'):
@@ -40,13 +40,19 @@ class ParticleInfo:
             wavefunction = [wavefunction_incoming, wavefunction_outgoing]
             return wavefunction
         if self.spin == 1:
-            wavefunction_incoming_name = 'u(p_{})'.format(self.name)
-            wavefunction_incoming_antiname = 'vbar(p_{})'.format(self.antiname)
-            wavefunction_outgoing_name = 'ubar(p_{})'.format(self.name)
-            wavefunction_outgoing_antiname = 'v(p_{})'.format(self.antiname)
-            
-            wavefunction_incoming = [wavefunction_incoming_name, wavefunction_incoming_antiname]
-            wavefunction_outgoing = [wavefunction_outgoing_name, wavefunction_outgoing_antiname]
+            if self.pid > 0:
+                wavefunction_incoming = 'u(p_{})'.format(self.name)
+                wavefunction_outgoing = 'ubar(p_{})'.format(self.name)
+                wavefunction = [wavefunction_incoming, wavefunction_outgoing]
+                return wavefunction
+            if self.pid < 0:
+                wavefunction_incoming = 'vbar(p_{})'.format(self.name) 
+                wavefunction_outgoing = 'v(p_{})'.format(self.name)
+                wavefunction = [wavefunction_incoming, wavefunction_outgoing]
+                return wavefunction
+        if self.spin == 2:
+            wavefunction_incoming = 'epsilon(p_{})'.format(self.name)
+            wavefunction_outgoing = 'epsilon*(p_{})'.format(self.name)
             wavefunction = [wavefunction_incoming, wavefunction_outgoing]
             return wavefunction
         else:

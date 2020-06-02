@@ -88,7 +88,7 @@ def main():
     print('*'.join(amp))
 
     amp1 = feyn_rules.FeynRules(model, incoming_particles, outgoing_particles, internal_particles)
-    print(particles['e-'].wavefunction[0])
+    print('Incoming wavefunction for {}: {}'.format(particles['e-'].name, particles['e-'].wavefunction[0]))
     print(amp1._amplitude())
 
 if __name__ == '__main__':
