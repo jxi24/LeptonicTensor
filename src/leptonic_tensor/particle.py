@@ -1,5 +1,5 @@
 class ParticleInfo:
-    def __init__(self, ufo_particle):
+    def __init__(self, ufo_particle, label=None):
         self.name = ufo_particle.name
         self.antiname = ufo_particle.antiname
         self.pid = ufo_particle.pdg_code
@@ -9,7 +9,7 @@ class ParticleInfo:
         self.icharge = int(ufo_particle.charge*3)
         self.spin = ufo_particle.spin-1
         self.propagator = self._get_propagator(ufo_particle)
-        self.wavefunction = self._get_wavefunction()
+        self.wavefunction = self.get_wavefunction(label)
 
     def __str__(self):
         return '{}: {}, {}, {}, {}, {}, {}, {}, {}, {}'.format(
@@ -33,27 +33,31 @@ class ParticleInfo:
         else:
             return ufo_particle.propagator
         
-    def _get_wavefunction(self):
+    def get_wavefunction(self, label):
         if self.spin == 0:
             wavefunction_incoming = '1'
             wavefunction_outgoing = '1'
             wavefunction = [wavefunction_incoming, wavefunction_outgoing]
+            self.wavefunction = wavefunction
             return wavefunction
         if self.spin == 1:
             if self.pid > 0:
-                wavefunction_incoming = 'u(p_{})'.format(self.name)
-                wavefunction_outgoing = 'ubar(p_{})'.format(self.name)
+                wavefunction_incoming = 'u(p_[{},{}])'.format(self.name, label)
+                wavefunction_outgoing = 'ubar(p_[{},{}])'.format(self.name, label)
                 wavefunction = [wavefunction_incoming, wavefunction_outgoing]
+                self.wavefunction = wavefunction
                 return wavefunction
             if self.pid < 0:
-                wavefunction_incoming = 'vbar(p_{})'.format(self.name) 
-                wavefunction_outgoing = 'v(p_{})'.format(self.name)
+                wavefunction_incoming = 'vbar(p_[{},{}])'.format(self.name, label) 
+                wavefunction_outgoing = 'v(p_[{},{}])'.format(self.name, label)
                 wavefunction = [wavefunction_incoming, wavefunction_outgoing]
+                self.wavefunction = wavefunction
                 return wavefunction
         if self.spin == 2:
-            wavefunction_incoming = 'epsilon(p_{})'.format(self.name)
-            wavefunction_outgoing = 'epsilon*(p_{})'.format(self.name)
+            wavefunction_incoming = 'epsilon(p_[{},{}])'.format(self.name, label)
+            wavefunction_outgoing = 'epsilon*(p_[{},{}])'.format(self.name, label)
             wavefunction = [wavefunction_incoming, wavefunction_outgoing]
+            self.wavefunction = wavefunction
             return wavefunction
         else:
             pass
