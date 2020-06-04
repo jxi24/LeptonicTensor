@@ -91,6 +91,7 @@ def main():
     #print('Incoming wavefunction for {}: {}'.format(particles['e-'].name, particles['e-'].wavefunction[0]))
     print("\n")
     print(amp1.amplitude())
+    print("\n")
     #print(amp1._get_vertex(outgoing_particles, internal_particles))
     amp2 = feyn_rules.FeynRules(model, incoming_particles, outgoing_particles, [particles['Z']])
     print(amp2.amplitude())

@@ -56,10 +56,16 @@ class FeynRules:
         
         vertex_in = self._get_vertex(self.incoming, self.internal)
         vertex_out = self._get_vertex(self.outgoing, self.internal)
-        prefact = vertex_in[1] + vertex_out[1] + vertex_in[2] + vertex_out[2]
-        lorentz = vertex_in[0] + vertex_out[0]
+        #prefact = vertex_in[1] + vertex_out[1] + vertex_in[2] + vertex_out[2]
+        #lorentz = vertex_in[0] + vertex_out[0]
+        V_in = ''
+        for i in range(len(vertex_in[0])):
+            V_in += '(' + vertex_in[1][i] + ')' + '*' + vertex_in[2][0] + '*' + '(' + vertex_in[0][i] + ')'
+        V_out = ''
+        for i in range(len(vertex_out[0])):
+            V_out += '(' + vertex_out[1][i] + ')' + '*' + vertex_out[2][0] + '*' + '(' + vertex_out[0][i] + ')'
         
-        amp = prefact + [outgoing_wavefunctions[1], lorentz[1], outgoing_wavefunctions[0], propagators[0], incoming_wavefunctions[0], lorentz[0], incoming_wavefunctions[1]]
+        amp = [outgoing_wavefunctions[1], V_out, outgoing_wavefunctions[0], propagators[0], incoming_wavefunctions[0], V_in, incoming_wavefunctions[1]]
         Amp = '*'.join(amp)
         return Amp
     
