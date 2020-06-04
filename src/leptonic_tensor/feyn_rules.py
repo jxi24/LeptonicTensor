@@ -27,16 +27,15 @@ class FeynRules:
             lorentz = [ltz.structure for ltz in vertex.lorentz]
             color = vertex.color
             coupling = [vertex.couplings[(0,i)].value for i in range(len(lorentz))]
-            #lorentz = vertex.lorentz[0].structure
-            #coupling = vertex.couplings[(0,0)].value
             return [lorentz, coupling, color]
         else:
             pass
     
     def _get_propagator(self, internal):
         propagator = self.model.propagator_map[internal.propagator]
-        
-        return '(({}) / ({}))'.format(propagator.numerator, propagator.denominator)
+        num = propagator.numerator.replace('Mass(id)',str(internal.mass)).replace('Width(id)',str(internal.width)).replace('id',internal.name)
+        denom = propagator.denominator.replace('Mass(id)',str(internal.mass)).replace('Width(id)',str(internal.width)).replace('id',internal.name)
+        return '(({}) / ({}))'.format(num, denom)
     
     def amplitude(self):
         incoming_wavefunctions = []

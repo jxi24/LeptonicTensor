@@ -92,6 +92,8 @@ def main():
     print("\n")
     print(amp1.amplitude())
     #print(amp1._get_vertex(outgoing_particles, internal_particles))
+    amp2 = feyn_rules.FeynRules(model, incoming_particles, outgoing_particles, [particles['Z']])
+    print(amp2.amplitude())
 
 if __name__ == '__main__':
     main()
