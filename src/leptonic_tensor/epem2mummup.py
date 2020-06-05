@@ -20,7 +20,7 @@ class Model:
             if part.spin < 0:
                 continue
             test = particle.ParticleInfo(part)
-            part_map[test.name] = test
+            part_map[test.pid] = test
 
         for key, value in part_map.items():
             print(key, value)
@@ -52,9 +52,37 @@ class Model:
         return (', ').join(list(self.particle_map.keys()))
 
 
+class Particle:
+    def __init__(self, model, pid, momentum, incoming):
+        self.momentum = momentum
+        self.info = model.particle_map[pid]
+        self.incoming = incoming
+        self.model = model
+
+    def anti(self):
+        return Particle(self.model, -self.info.pid, -self.momentum, not self.incoming)
+
+    def wavefunction(self):
+        if self.incoming:
+            return self.anti().wavefunction()
+        else:
+            if self.info.pid < 0:
+                return 'v(p_[{}, {}])'.format(self.info.name, self.momentum)
+            if self.info.pid > 0:
+                return 'u(p_[{}, {}])'.format(self.info.name, self.momentum)
+
+    def __str__(self):
+        return 'Particle({}, {})'.format(self.momentum, self.info)
+
+
 def main():
     all_models = models.discover_models()
     model = Model('Models.SM_NLO', all_models)
+    ubar = Particle(model, -2, 3, False)
+    print(ubar.wavefunction())
+    u = ubar.anti()
+    print(u.wavefunction())
+
 
     # Setup the incoming, outgoing, and internal particles
     particles = model.particle_map
