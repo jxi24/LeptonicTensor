@@ -7,22 +7,43 @@ ufo_grammer = """
 
     // Expressions
     ?expression: arith
+        | func_def ":=" func_expr                   -> register_function
+        | NAME ":=" func_expr                       -> register
+
     ?arith: term | term "+" arith                   -> add
         | term "-" arith                            -> sub
     ?term: factor | factor "*" term                 -> mul
         | term "/" term                             -> div
     ?factor: atom | "+" factor                      -> pos
         | "-" factor                                -> neg
-    ?atom: "(" expression ")"
+    ?atom: "(" arith ")"
         | function
         | NUMBER "j"                                -> imaginary
         | NUMBER                                    -> number
+        | NAME                                      -> var
 
-    // function evaluation
+    // functions
+    ?func_def: funcname "(" arglist ")"
     ?function: funcname "(" indices ")"             -> func_eval
     ?funcname: NAME
+    ?func_expr: term_expr
+        | term_expr "+" func_expr                   -> add
+        | term_expr "-" func_expr                   -> sub
+    ?term_expr: factor_expr
+        | factor_expr "*" term_expr                 -> mul
+        | term_expr "/" term_expr                   -> div
+    ?factor_expr: atom_expr
+        | "+" factor_expr                           -> pos
+        | "-" factor_expr                           -> neg
+    ?atom_expr: "(" func_expr ")"
+        | function
+        | NUMBER "j"                                -> imaginary
+        | NUMBER                                    -> number
+        | NAME
+
 
     // Helper functions
+    ?arglist: (NAME ("," NAME)*)                    -> args
     ?indices: (NUMBER ("," NUMBER)*)                -> indices
 
     %import common.CNAME -> NAME
@@ -56,11 +77,28 @@ class UFOTree(Transformer):
     def indices(self, *args):
         return [int(i) for i in args]
 
+    def args(self, *args):
+        return [str(i) for i in args]
+
     def func_eval(self, name, idxs):
         return self.functions[name](*idxs)
 
     def imaginary(self, value):
         return float(value)*1j
+
+    def register(self, name, value):
+        self.vars[name] = value
+        return value
+
+    def register_function(self, name, func):
+        print(name.children[0], name.children[1], func)
+        func_name = name.children[0]
+        func_args = name.children[1]
+        self.functions[name.children[0]] = lambda *func_args: func
+        print(self.functions[func_name](1, 1))
+
+    def var(self, name):
+        return self.vars[name]
 
 
 ufo_parser = Lark(ufo_grammer, parser='lalr', transformer=UFOTree())

@@ -115,3 +115,13 @@ def test_projections():
     term2 = ufo("ProjP(0, 1)*ProjM(1, 2)")
     term3 = lt.Tensor(np.zeros([4, 4]), (0, 2))
     assert(term1 == term2 == term3)
+
+
+def test_parameters():
+    ufo("MU_R := 91.188")
+    mu_r = ufo("MU_R")
+    assert(mu_r == 91.188)
+
+
+def test_functions():
+    ufo("pow(x, y) := x*y")
