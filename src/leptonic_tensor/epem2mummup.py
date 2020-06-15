@@ -2,7 +2,7 @@ import models
 import itertools
 import particle
 import feyn_rules
-
+import numpy as np
 
 class Model:
     def __init__(self, name, all_models):
@@ -11,6 +11,7 @@ class Model:
         self.particle_map = self._particle_map()
         self.vertex_map = self._vertex_map()
         self.propagator_map = self._propagator_map()
+        self.lorentz_map = self._lorentz_map()
         self.couplings = self.model.all_couplings
 
     def _particle_map(self):
@@ -46,6 +47,18 @@ class Model:
         for prop in propagators:
             prop_map[prop.name] = prop
         return prop_map
+
+    def _lorentz_map(self):
+        # spin = 2*S
+        lorentzs = self.model.all_lorentz
+        lorentz_map = {}
+        for lorentz in lorentzs:
+            ltz = LorentzInfo(lorentz)
+            lorentz_map[tuple(ltz.spins), ltz.name] = [ltz.structure, ltz.indices]
+            #lorentz_map[tuple(ltz.spins), ltz.name] = ltz.structure
+        for key, value in lorentz_map.items():
+            print(key, value)
+        return lorentz_map
 
     @property
     def particles(self):
@@ -89,6 +102,31 @@ class Particle:
     def __str__(self):
         return 'Particle({}, {})'.format(self.momentum, self.info)
 
+class LorentzInfo:
+    def __init__(self, ufo_lorentz):
+        self.name = ufo_lorentz.name
+        self.spins = np.subtract(ufo_lorentz.spins,1)
+        self.structure, self.indices = parse(ufo_lorentz.structure)
+        #self.structure = ufo_lorentz.structure
+        
+    def __str__(self):
+        return '{}: {}, {}'.format(
+            self.name, self.spins, self.structure)
+    
+class Lorentz:
+    def __init__(self, model, spins):
+        self.model = model
+        self.info = model.lorentz_map[spins]
+        self.indices = self.info[1]
+        self.structure = self.info[0]
+        
+    def __str__(self):
+        return parse(self.info.structure, self.indices)
+    
+    def transform(self, idxs, change=False):
+        if not change:
+            self.indices = idxs
+        return np.take(self.structure, idxs)
 
 def main():
     all_models = models.discover_models()
