@@ -44,7 +44,8 @@ ufo_grammer = """
 
     // Helper functions
     ?arglist: (NAME ("," NAME)*)                    -> args
-    ?indices: (NUMBER ("," NUMBER)*)                -> indices
+    ?indices: (wnumber ("," wnumber)*)              -> indices
+    ?wnumber: NUMBER | "-" NUMBER
 
     %import common.CNAME -> NAME
     %import common.NUMBER
