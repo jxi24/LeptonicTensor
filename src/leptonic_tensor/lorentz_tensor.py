@@ -2,6 +2,10 @@ import numpy as np
 import collections
 
 
+LKEYS = list(map(chr, range(65, 91)))
+SKEYS = list(map(chr, range(97, 123)))
+
+
 class Index:
     def __init__(self, index, lorentz):
         self.index = index
@@ -17,6 +21,9 @@ class Index:
     def __ne__(self, rhs):
         return not self == rhs
 
+    def __lt__(self, rhs):
+        return self.index < rhs.index
+
     def __hash__(self):
         return self.index.__hash__()
 
@@ -25,9 +32,12 @@ class Index:
 
     def __str__(self):
         if self.lorentz:
-            return f'mu{self.index}'
-        else:
-            return f'i{self.index}'
+            return LKEYS[self.index]
+        return SKEYS[self.index]
+        # if self.lorentz:
+        #     return f'mu{self.index}'
+        # else:
+        #     return f'i{self.index}'
 
     def __int__(self):
         return self.index
@@ -45,9 +55,9 @@ class SpinIndex(Index):
 
 
 class Tensor:
-    def __init__(self, array, indices):
+    def __init__(self, array, indices=None):
         self._array = np.array(array)
-        self._indices = tuple(indices)
+        self._indices = tuple(indices) if indices is not None else None
         self._scalar = (True if self._indices is None
                         or self._indices == tuple()
                         else False)
@@ -70,7 +80,7 @@ class Tensor:
             if isinstance(other, (int, float, complex)):
                 return self._array == other
             elif other._scalar:
-                return self._array[0] == other._array[0]
+                return np.array_equal(self._array, other._array)
         return (np.array_equal(self._array, other._array)
                 and self._indices == other._indices)
 
@@ -110,17 +120,41 @@ class Tensor:
         if set(self._indices) != set(other._indices):
             raise ValueError(f"Inconsistent indices in addition: "
                              f"{self._indices} and {other._indices}")
-        result = self._array + other._array
-        return Tensor(result, self._indices)
+        return self.sum(other)
+
+    def __radd__(self, other):
+        if isinstance(other, (int, float, complex)):
+            result = self._array + other
+            return Tensor(result, self._indices)
+
+        if not isinstance(other, Tensor):
+            raise TypeError("Invalid argument")
+
+        if set(self._indices) != set(other._indices):
+            raise ValueError(f"Inconsistent indices in addition: "
+                             f"{self._indices} and {other._indices}")
+        return __add__(other, self)
 
     def __sub__(self, other):
         return self + (-other)
+
+    def __rsub__(self, other):
+        return other + (-self)
 
     def __neg__(self):
         return Tensor(-self._array, self._indices)
 
     def __pos__(self):
         return Tensor(self._array, self._indices)
+
+    def sum(self, rhs):
+        # Perform sum with transposes
+        arg_indices = np.argsort(np.array(self._indices))
+        rhs_indices = np.argsort(np.array([int(x) for x in rhs._indices]))
+        rhs_array = np.transpose(rhs._array, rhs_indices)
+        rhs_array = np.transpose(rhs_array, np.argsort(arg_indices))
+
+        return Tensor(self._array + rhs_array, self._indices)
 
     def contract(self, rhs):
         # Get indices
@@ -130,25 +164,23 @@ class Tensor:
         lorentz_rhs = [idx for idx in rhs._indices if idx.lorentz]
         spin_rhs = [idx for idx in rhs._indices if not idx.lorentz]
 
-        out_lorentz = tuple(elm for elm, count
-                            in collections.Counter(lorentz_lhs
-                                                   + lorentz_rhs).items()
-                            if count == 1)
-        out_spin = tuple(elm for elm, count
-                         in collections.Counter(spin_lhs
-                                                + spin_rhs).items()
-                         if count == 1)
-        out_indices = out_lorentz + out_spin
-        lhs_indices = [int(x) for x in self._indices]
-        rhs_indices = [int(x) for x in rhs._indices]
+        # Get output indices
+        out_lorentz = list(elm for elm, count
+                           in collections.Counter(lorentz_lhs
+                                                  + lorentz_rhs).items()
+                           if count == 1)
+        out_spin = list(elm for elm, count
+                        in collections.Counter(spin_lhs
+                                               + spin_rhs).items()
+                        if count == 1)
+        out_indices = ''.join([str(x) for x in out_lorentz + out_spin])
+        lhs_indices = ''.join([str(x) for x in self._indices])
+        rhs_indices = ''.join([str(x) for x in rhs._indices])
+        einsum = f'{lhs_indices},{rhs_indices}->{out_indices}'
 
-        out_array = np.einsum(self._array, lhs_indices,
-                              rhs._array, rhs_indices)
-        indices = list(self._indices) + list(rhs._indices)
-        out_indices = tuple(elm for elm, count
-                            in collections.Counter(indices).items()
-                            if count == 1)
-        return Tensor(out_array, out_indices)
+        out_array = np.einsum(einsum, self._array, rhs._array)
+
+        return Tensor(out_array, out_lorentz + out_spin)
 
     def __getitem__(self, indices):
         if self._scalar:
@@ -163,7 +195,21 @@ class Tensor:
             self._array[indices] = value
 
     def reduce(self):
-        out_array = np.einsum(self._array, self._indices)
-        out_keys, out_counts = np.unique(self._indices, return_counts=True)
-        out_keys = tuple(key.item() for i, key in enumerate(out_keys) if out_counts[i] == 1)
-        return Tensor(out_array, out_keys)
+        # Get indices
+        lorentz_lhs = [idx for idx in self._indices if idx.lorentz]
+        spin_lhs = [idx for idx in self._indices if not idx.lorentz]
+
+        # Get output indices
+        out_lorentz = list(elm for elm, count
+                           in collections.Counter(lorentz_lhs).items()
+                           if count == 1)
+        out_spin = list(elm for elm, count
+                        in collections.Counter(spin_lhs).items()
+                        if count == 1)
+        out_indices = ''.join([str(x) for x in out_lorentz + out_spin])
+        lhs_indices = ''.join([str(x) for x in self._indices])
+        einsum = f'{lhs_indices}->{out_indices}'
+
+        out_array = np.einsum(einsum, self._array)
+
+        return Tensor(out_array, out_lorentz + out_spin)

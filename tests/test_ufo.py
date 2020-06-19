@@ -54,9 +54,9 @@ def test_gamma():
 # - https://en.wikipedia.org/wiki/Gamma_matrices#Identities
 def test_trace_gamma():
     # Tr(\gamma^\mu) = 0
-    # lhs = ufo("Gamma(0, 1, 1)").reduce()
-    # rhs = lt.Tensor(np.zeros(4), [0])
-    # assert(lhs == rhs)
+    lhs = ufo("Gamma(0, 1, 1)").reduce()
+    rhs = lt.Tensor(np.zeros(4), [lt.LorentzIndex(0)])
+    assert(lhs == rhs)
 
     # TODO: Get this working, and ensure it is quick
     # Trace of any product of an odd number of \gamma^\mu is zero
@@ -92,7 +92,7 @@ def test_trace_gamma():
 
     # Tr(\gamma^\mu\gamma^\nu\gamma5) = 0
     lhs = ufo("Gamma(0, 2, 3)*Gamma(1, 3, 4)*Gamma5(4, 2)")
-    rhs = lt.Tensor(np.zeros([4, 4]), (0, 1))
+    rhs = lt.Tensor(np.zeros([4, 4]), (lt.LorentzIndex(0), lt.LorentzIndex(1)))
     assert(lhs == rhs)
 
     # Tr(\gamma^\mu\gamma^\nu\gamma^\rho\gamma^\sigma)
