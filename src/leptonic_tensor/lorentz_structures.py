@@ -1,5 +1,5 @@
 import numpy as np
-from . import lorentz_tensor as lt
+import lorentz_tensor as lt
 
 METRIC_TENSOR = np.diag([1, -1, -1, -1])
 IDENTITY = np.diag([1, 1, 1, 1])

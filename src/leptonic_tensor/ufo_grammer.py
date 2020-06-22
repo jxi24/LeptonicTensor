@@ -1,6 +1,6 @@
 from lark import Lark, Transformer, v_args
 import numpy as np
-from . import lorentz_structures as ls
+import lorentz_structures as ls
 
 ufo_grammer = """
     ?start: expression

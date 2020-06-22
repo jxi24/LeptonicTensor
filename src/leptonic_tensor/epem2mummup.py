@@ -1,161 +1,41 @@
 import models
 import itertools
-import particle
+import model_class as mc
+import particle_class as pc
+import lorentz_class as lc
+import vertex_class as vc
 import feyn_rules
 import numpy as np
-
-class Model:
-    def __init__(self, name, all_models):
-        self.name = name
-        self.model = all_models[name]
-        self.particle_map = self._particle_map()
-        self.vertex_map = self._vertex_map()
-        self.propagator_map = self._propagator_map()
-        self.lorentz_map = self._lorentz_map()
-        self.couplings = self.model.all_couplings
-
-    def _particle_map(self):
-        particles = self.model.all_particles
-        part_map = {}
-        for part in particles:
-            if part.spin < 0:
-                continue
-            test = particle.ParticleInfo(part)
-            part_map[test.pid] = test
-
-        for key, value in part_map.items():
-            print(key, value)
-        return part_map
-
-    def _vertex_map(self):
-        vertices = self.model.all_vertices
-        vert_map = {}
-        for vertex in vertices:
-            particles = vertex.particles
-            # print(vertex.lorentz, particles)
-            pids = []
-            for part in particles:
-                pids.append(part.pdg_code)
-            pids.sort()
-            # print(pids)
-            vert_map[tuple(pids)] = vertex
-        return vert_map
-
-    def _propagator_map(self):
-        propagators = self.model.all_propagators
-        prop_map = {}
-        for prop in propagators:
-            prop_map[prop.name] = prop
-        return prop_map
-
-    def _lorentz_map(self):
-        # spin = 2*S
-        lorentzs = self.model.all_lorentz
-        lorentz_map = {}
-        for lorentz in lorentzs:
-            ltz = LorentzInfo(lorentz)
-            lorentz_map[tuple(ltz.spins), ltz.name] = [ltz.structure, ltz.indices]
-            #lorentz_map[tuple(ltz.spins), ltz.name] = ltz.structure
-        for key, value in lorentz_map.items():
-            print(key, value)
-        return lorentz_map
-
-    @property
-    def particles(self):
-        return (', ').join(list(self.particle_map.keys()))
-
-
-class Particle:
-    def __init__(self, model, pid, momentum, incoming):
-        self.momentum = momentum
-        try:
-            self.info = model.particle_map[pid]
-        except:
-            # Particle is its own antiparticle.
-            self.info = model.particle_map[-pid]
-        self.incoming = incoming
-        self.model = model
-
-    def anti(self):
-        return Particle(self.model, -self.info.pid, -self.momentum, not self.incoming)
-
-    def wavefunction(self):
-        '''
-        Return outgoing wavefunction of Particle, identified with
-        particle name and momentum label number.
-        '''
-        if self.incoming:
-            return self.anti().wavefunction()
-        else:
-            if self.info.spin == 0:
-                return ''
-            if self.info.spin == 1:
-                if self.info.pid < 0:
-                    return 'v(p_[{}, {}])'.format(self.info.name, self.momentum)
-                if self.info.pid > 0:
-                    return 'ubar(p_[{}, {}])'.format(self.info.name, self.momentum)
-            if self.info.spin == 2:
-                return 'epsilon*(p_[{}, {}])'.format(self.info.name, self.momentum)
-            else:
-                pass
-
-    def __str__(self):
-        return 'Particle({}, {})'.format(self.momentum, self.info)
-
-class LorentzInfo:
-    def __init__(self, ufo_lorentz):
-        self.name = ufo_lorentz.name
-        self.spins = np.subtract(ufo_lorentz.spins,1)
-        self.structure, self.indices = parse(ufo_lorentz.structure)
-        #self.structure = ufo_lorentz.structure
-        
-    def __str__(self):
-        return '{}: {}, {}'.format(
-            self.name, self.spins, self.structure)
-    
-class Lorentz:
-    def __init__(self, model, spins):
-        self.model = model
-        self.info = model.lorentz_map[spins]
-        self.indices = self.info[1]
-        self.structure = self.info[0]
-        
-    def __str__(self):
-        return parse(self.info.structure, self.indices)
-    
-    def transform(self, idxs, change=False):
-        if not change:
-            self.indices = idxs
-        return np.take(self.structure, idxs)
+import ufo_grammer
+import lorentz_tensor as lt
 
 def main():
     all_models = models.discover_models()
-    model = Model('Models.SM_NLO', all_models)
-    # ubar = Particle(model, -2, 3, False)
-    # print(ubar.wavefunction())
-    # u = ubar.anti()
-    # print(u.wavefunction())
-
-
-    # Setup the incoming, outgoing, and internal particles
-    # particles = model.particle_map
-    # incoming_particles = [particles[-11], particles[11]]
-    # outgoing_particles = [particles[-13], particles[13]]
-    # internal_particles = [particles[22]]
+    model = mc.Model('Models.SM_NLO', all_models)
     
-    elec = Particle(model, 11, 1, True)
-    antielec = Particle(model, -11, 2, True)
-    muon = Particle(model, 13, 3, False)
-    antimuon = Particle(model, -13, 4, False)
-    photon = Particle(model, 22, 0, False)
-    # print(elec.wavefunction())
-    # print(antielec.wavefunction())
-    # print(muon.wavefunction())
-    # print(antimuon.wavefunction())
+    elec = pc.Particle(model, 11, 1, True)
+    antielec = pc.Particle(model, -11, 2, True)
+    muon = pc.Particle(model, 13, 3, False)
+    antimuon = pc.Particle(model, -13, 4, False)
+    photon = pc.Particle(model, 22, 0, False)
     
     InP = [elec, antielec]
     OutP = [muon, antimuon]
     IntP = [photon]
+    
+    l = lc.Lorentz(model, [1,1,2], 'FFV1', [1,2,5])
+    print(l)
+    
+    vert1 = vc.Vertex(model, [elec, antielec, photon], [elec.momentum,antielec.momentum,photon.momentum])
+    #V1 = lt.Tensor(vert1.structure, vert1.indices)
+    print(vert1)
+    
+    gl1 = pc.Particle(model, 21, 1, True)
+    gl2 = pc.Particle(model, 21, 2, False)
+    gl3 = pc.Particle(model, 21, 3, False)
+    
+    vert2 = vc.Vertex(model, [gl1, gl2, gl3], [1,2,3])
+    print(vert2)
 
     # pids1 = [particles[-11].pid,
     #          particles[11].pid,
@@ -192,7 +72,7 @@ def main():
     # print(amp2.amplitude())
     
     Amp1 = feyn_rules.FeynRules(model, InP, OutP, IntP)
-    print(Amp1.amplitude())
+    #print(Amp1.amplitude())
     
     #Zboson = Particle(model, 23, 0, False)
     #Amp2 = feyn_rules.FeynRules(model, InP, OutP, [Zboson])

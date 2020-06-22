@@ -62,4 +62,42 @@ class ParticleInfo:
         else:
             pass
 
+class Particle:
+    def __init__(self, model, pid, momentum, incoming):
+        self.momentum = momentum
+        self.pid = pid
+        try:
+            self.info = model.particle_map[self.pid]
+        except:
+            # Particle is its own antiparticle.
+            self.info = model.particle_map[-self.pid]
+        self.incoming = incoming
+        self.model = model
+
+    def anti(self):
+        return Particle(self.model, -self.info.pid, -self.momentum, not self.incoming)
+
+    def wavefunction(self):
+        '''
+        Return outgoing wavefunction of Particle, identified with
+        particle name and momentum label number.
+        '''
+        if self.incoming:
+            return self.anti().wavefunction()
+        else:
+            if self.info.spin == 0:
+                return ''
+            if self.info.spin == 1:
+                if self.info.pid < 0:
+                    return 'v(p_[{}, {}])'.format(self.info.name, self.momentum)
+                if self.info.pid > 0:
+                    return 'ubar(p_[{}, {}])'.format(self.info.name, self.momentum)
+            if self.info.spin == 2:
+                return 'epsilon*(p_[{}, {}])'.format(self.info.name, self.momentum)
+            else:
+                pass
+
+    def __str__(self):
+        return 'Particle({}, {})'.format(self.momentum, self.info)
+
 
