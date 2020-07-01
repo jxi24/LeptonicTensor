@@ -158,3 +158,8 @@ def test_parameters():
     ufo("MZ := 91.118")
     ufo("Gf := 0.0000116637")
     ufo("MW := cmath.sqrt(MZ**2/2. + cmath.sqrt(MZ**4/4. - (aEW*cmath.pi*MZ**2)/(Gf*cmath.sqrt(2))))")
+    mz = 91.118
+    gf = 0.0000116637
+    aew = 1/127.8
+    result = np.sqrt(mz**2/2. + np.sqrt(mz**4/4. - (aew*np.pi*mz**2)/(gf*np.sqrt(2))))
+    assert(ufo("MW") == result)
