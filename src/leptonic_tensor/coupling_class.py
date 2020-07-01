@@ -6,7 +6,8 @@ class CouplingInfo():
         try:
             self.value = ufo_grammer.ufo(ufo_coupling.value)
         except:
-            self.value = ufo_coupling.value
+            self.value = None
+            #self.value = ufo_coupling.value
         
 
 class Coupling():

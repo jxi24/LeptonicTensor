@@ -67,17 +67,23 @@ class Model:
     def _parameter_map(self):
         parameter_map = {}
         for parameter in self.parameters:
-            if parameter.nature == 'external':
+            try:
+                print(parameter.name, parameter.value)
                 param = ufo_grammer.ufo("{} := {}".format(parameter.name, parameter.value))
                 parameter_map[parameter.name] = param
-            elif parameter.nature == 'internal':
-                if parameter.name == 'ZERO':
-                    parameter_map[parameter.name] = 0.0
-                try:
-                    param = ufo_grammer.ufo(parameter.value)
-                    parameter_map[parameter.name] = param
-                except:
-                    pass
+            except:
+                print('failed')
+            # if parameter.nature == 'external':
+            #     param = ufo_grammer.ufo("{} := {}".format(parameter.name, parameter.value))
+            #     parameter_map[parameter.name] = param
+            # elif parameter.nature == 'internal':
+            #     if parameter.name == 'ZERO':
+            #         parameter_map[parameter.name] = 0.0
+            #     try:
+            #         param = ufo_grammer.ufo(parameter.value)
+            #         parameter_map[parameter.name] = param
+            #     except:
+            #         pass
         return parameter_map
     
     def _coupling_map(self):

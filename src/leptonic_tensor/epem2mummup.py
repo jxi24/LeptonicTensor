@@ -34,8 +34,14 @@ def main():
     gl2 = pc.Particle(model, 21, 2, False)
     gl3 = pc.Particle(model, 21, 3, False)
     
-    vert2 = vc.Vertex(model, [gl1, gl2, gl3], [1,2,3])
-    print(vert2)
+    #vert2 = vc.Vertex(model, [gl1, gl2, gl3], [1,2,3])
+    #print(vert2)
+    
+    print(model.parameter_map)
+    #print(model.coupling_map)
+    print(model.parameter_map['aEWM1'])
+    print(model.parameter_map['ee'])
+    print(model.parameter_map['aEW'])
 
     # pids1 = [particles[-11].pid,
     #          particles[11].pid,

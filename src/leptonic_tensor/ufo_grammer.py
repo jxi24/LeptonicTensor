@@ -7,7 +7,7 @@ ufo_grammer = """
 
     // Expressions
     ?expression: arith
-        | func_def ":=" func_expr                   -> register_function
+        //| func_def ":=" func_expr                   -> register_function
         | NAME ":=" func_expr                       -> register
 
     ?arith: term | term "+" arith                   -> add
@@ -23,7 +23,7 @@ ufo_grammer = """
         | NAME                                      -> var
 
     // functions
-    ?func_def: funcname "(" arglist ")"
+    //?func_def: funcname "(" arglist ")"
     ?function: funcname "(" indices ")"             -> func_eval
     ?funcname: NAME
     ?func_expr: term_expr
@@ -39,12 +39,13 @@ ufo_grammer = """
         | function
         | NUMBER "j"                                -> imaginary
         | NUMBER                                    -> number
-        | NAME
+        | NAME                                      -> var
 
 
     // Helper functions
-    ?arglist: (NAME ("," NAME)*)                    -> args
+    //?arglist: (NAME ("," NAME)*)                    -> args
     ?indices: (wnumber ("," wnumber)*)              -> indices
+        | (NAME ("," NAME)*)                        -> vargs
     ?wnumber: NUMBER | "-" NUMBER
 
     %import common.CNAME -> NAME
@@ -70,10 +71,13 @@ class UFOTree(Transformer):
         'Epsilon': ls.Epsilon,
         'Metric': ls.Metric,
         'P': ls.Momentum,
+        'sqrt': np.sqrt,
+        'sin': np.sin,
+        'cos': np.cos,
     }
 
     def __init__(self):
-        self.vars = {}
+        self.vars = {'pi': np.pi}
 
     def indices(self, *args):
         return [int(i) for i in args]
@@ -100,6 +104,9 @@ class UFOTree(Transformer):
 
     def var(self, name):
         return self.vars[name]
+    
+    def vargs(self, *args):
+        return [self.var(arg) for arg in args]
 
 
 ufo_parser = Lark(ufo_grammer, parser='lalr', transformer=UFOTree())
