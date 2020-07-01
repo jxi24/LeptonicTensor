@@ -1,7 +1,30 @@
 import numpy as np
 import leptonic_tensor.lorentz_structures as ls
 import leptonic_tensor.lorentz_tensor as lt
-from leptonic_tensor.ufo_grammer import ufo
+from leptonic_tensor.ufo_grammer import UFOParser
+
+
+ufo = UFOParser()
+
+
+def test_decimal():
+    assert(ufo('10') == 10)
+    assert(ufo('0') == 0)
+
+
+def test_float():
+    assert(ufo('45.545') == 45.545)
+    assert(ufo('45.e-5') == 45.e-5)
+
+
+def test_imaginary():
+    assert(ufo('3j') == 3j)
+    assert(ufo('1.13j') == 1.13j)
+
+
+def test_complex():
+    assert(ufo('3+3j') == 3+3j)
+    assert(ufo('2.4+4.2j') == 2.4+4.2j)
 
 
 def test_ufo_metric():
@@ -121,7 +144,10 @@ def test_parameters():
     ufo("MU_R := 91.188")
     mu_r = ufo("MU_R")
     assert(mu_r == 91.188)
-
-
-# def test_functions():
-#     ufo("pow(x, y) := x*y")
+    ufo("aEWM1 := 127.8")
+    ufo("aEW := 1 / aEWM1")
+    ufo("ee := cmath.sqrt(aEW)")
+    ufo("GC_1 := ee*complex(0, -1)")
+    GC_1 = ufo("GC_1")
+    result = np.sqrt(1.0/127.8)*complex(0, -1)
+    assert(GC_1 == result)

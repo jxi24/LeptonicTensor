@@ -1,65 +1,16 @@
 from lark import Lark, Transformer, v_args
 import numpy as np
-import lorentz_structures as ls
-
-ufo_grammer = """
-    ?start: expression
-
-    // Expressions
-    ?expression: arith
-        //| func_def ":=" func_expr                   -> register_function
-        | NAME ":=" func_expr                       -> register
-
-    ?arith: term | term "+" arith                   -> add
-        | term "-" arith                            -> sub
-    ?term: factor | factor "*" term                 -> mul
-        | term "/" term                             -> div
-    ?factor: atom | "+" factor                      -> pos
-        | "-" factor                                -> neg
-    ?atom: "(" arith ")"
-        | function
-        | NUMBER "j"                                -> imaginary
-        | NUMBER                                    -> number
-        | NAME                                      -> var
-
-    // functions
-    //?func_def: funcname "(" arglist ")"
-    ?function: funcname "(" indices ")"             -> func_eval
-    ?funcname: NAME
-    ?func_expr: term_expr
-        | term_expr "+" func_expr                   -> add
-        | term_expr "-" func_expr                   -> sub
-    ?term_expr: factor_expr
-        | factor_expr "*" term_expr                 -> mul
-        | term_expr "/" term_expr                   -> div
-    ?factor_expr: atom_expr
-        | "+" factor_expr                           -> pos
-        | "-" factor_expr                           -> neg
-    ?atom_expr: "(" func_expr ")"
-        | function
-        | NUMBER "j"                                -> imaginary
-        | NUMBER                                    -> number
-        | NAME                                      -> var
-
-
-    // Helper functions
-    //?arglist: (NAME ("," NAME)*)                    -> args
-    ?indices: (wnumber ("," wnumber)*)              -> indices
-        | (NAME ("," NAME)*)                        -> vargs
-    ?wnumber: NUMBER | "-" NUMBER
-
-    %import common.CNAME -> NAME
-    %import common.NUMBER
-    %import common.WS_INLINE
-
-    %ignore WS_INLINE
-"""
+from . import lorentz_structures as ls
+import pathlib
+import os
 
 
 @v_args(inline=True)
 class UFOTree(Transformer):
     from operator import add, sub, mul, truediv as div, neg, pos
-    number = float
+    decimal = int
+    real = float
+
     functions = {
         'complex': (lambda x, y: x + 1j*y),
         'C': ls.ChargeConj,
@@ -71,43 +22,57 @@ class UFOTree(Transformer):
         'Epsilon': ls.Epsilon,
         'Metric': ls.Metric,
         'P': ls.Momentum,
-        'sqrt': np.sqrt,
-        'sin': np.sin,
-        'cos': np.cos,
+        'cmath.sqrt': np.sqrt,
+        'cmath.cos': np.cos,
+        'cmath.sin': np.sin,
+        'cmath.pi': np.pi,
     }
 
     def __init__(self):
-        self.vars = {'pi': np.pi}
+        self.vars = {}
 
-    def indices(self, *args):
-        return [int(i) for i in args]
-
-    def args(self, *args):
-        return [str(i) for i in args]
-
-    def func_eval(self, name, idxs):
-        return self.functions[name](*idxs)
+    def call(self, name, idxs):
+        funcname = '.'.join(name.children)
+        return self.functions[funcname](*(idxs.children))
 
     def imaginary(self, value):
-        return float(value)*1j
+        return complex(value)
 
-    def register(self, name, value):
+    def assign(self, name, value):
         self.vars[name] = value
         return value
 
-    def register_function(self, name, func):
-        print(name.children[0], name.children[1], func)
-        func_name = name.children[0]
-        func_args = name.children[1]
-        self.functions[name.children[0]] = lambda *func_args: func
-        print(self.functions[func_name](1, 1))
-
     def var(self, name):
-        return self.vars[name]
-    
-    def vargs(self, *args):
-        return [self.var(arg) for arg in args]
+        try:
+            return self.vars[name]
+        except KeyError:
+            return name
 
 
-ufo_parser = Lark(ufo_grammer, parser='lalr', transformer=UFOTree())
-ufo = ufo_parser.parse
+class UFOParser:
+    def __init__(self, model=None):
+        cwd = pathlib.Path(__file__).parent.absolute()
+
+        if model is not None:
+            for function in model.all_functions:
+                self._load_function(function)
+
+        self.parser = Lark.open(os.path.join(cwd, 'ufo.lark'),
+                                parser='lalr',
+                                transformer=UFOTree())
+
+    def _load_function(self, function):
+        arc_trig_funcs = [
+            ('acos', 'arccos'),
+            ('asin', 'arcsin'),
+            ('atan', 'arctan'),
+        ]
+        name = function.name
+        arguments = ','.join(function.arguments)
+        expression = function.expr.replace('cmath', 'np')
+        for atrig in arc_trig_funcs:
+            expression = expression.replace(atrig[0], atrig[1])
+        UFOTree.functions[name] = eval(f'lambda {arguments}: {expression}')
+
+    def __call__(self, expression):
+        return self.parser.parse(expression)
