@@ -25,11 +25,10 @@ class UFOTree(Transformer):
         'cmath.sqrt': np.sqrt,
         'cmath.cos': np.cos,
         'cmath.sin': np.sin,
-        'cmath.pi': np.pi,
     }
 
     def __init__(self):
-        self.vars = {}
+        self.vars = {'cmath.pi': np.pi}
 
     def call(self, name, idxs):
         funcname = '.'.join(name.children)
@@ -43,10 +42,11 @@ class UFOTree(Transformer):
         return value
 
     def var(self, name):
+        varname = '.'.join(name.children)
         try:
-            return self.vars[name]
+            return self.vars[varname]
         except KeyError:
-            return name
+            return varname
 
 
 class UFOParser:

@@ -151,3 +151,7 @@ def test_parameters():
     GC_1 = ufo("GC_1")
     result = np.sqrt(1.0/127.8)*complex(0, -1)
     assert(GC_1 == result)
+    ufo("aS := 0.118")
+    ufo("G := 2*cmath.sqrt(aS)*cmath.sqrt(cmath.pi)")
+    result = 2*np.sqrt(0.118)*np.sqrt(np.pi)
+    assert(ufo("G") == result)

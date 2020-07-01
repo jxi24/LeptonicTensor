@@ -14,7 +14,7 @@ vfpdef: NAME
 arguments: argvalue ("," argvalue)*
 ?argvalue: expr
 
-dotted_name: NAME (("." NAME)*)?
+dotted_name: NAME ("." NAME)*
 
 ?expr_stmt: expr
 ?expr: term | term "+" expr                     -> add
@@ -29,7 +29,7 @@ dotted_name: NAME (("." NAME)*)?
 ?atom_expr: dotted_name "(" [arguments] ")"     -> call
     | atom
 
-?atom: NAME                                     -> var
+?atom: dotted_name                              -> var
     | number
 
 number: DEC_NUMBER                              -> decimal
