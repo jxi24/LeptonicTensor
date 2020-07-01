@@ -24,10 +24,11 @@ dotted_name: NAME ("." NAME)*
 ?factor: "+"factor                              -> pos
     | "-"factor                                 -> neg
     | power
-?power: atom_expr ("**" factor)?
+?power: atom_expr ("**" factor)?                -> pow
 
 ?atom_expr: dotted_name "(" [arguments] ")"     -> call
     | atom
+    | "(" expr ")"
 
 ?atom: dotted_name                              -> var
     | number

@@ -48,6 +48,11 @@ class UFOTree(Transformer):
         except KeyError:
             return varname
 
+    def pow(self, base, power=1):
+        if power == 1:
+            return base
+        return base**power
+
 
 class UFOParser:
     def __init__(self, model=None):
