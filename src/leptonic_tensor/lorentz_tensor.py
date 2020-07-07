@@ -147,6 +147,24 @@ class Tensor:
     def __pos__(self):
         return Tensor(self._array, self._indices)
 
+    def __float__(self):
+        if self._scalar:
+            return float(self._array)
+        raise TypeError("Tensor is not a scalar")
+
+    def __complex__(self):
+        if self._scalar:
+            return complex(self._array)
+        raise TypeError("Tensor is not a scalar")
+
+    def conjugate(self):
+        return Tensor(self._array.conjugate(), self._indices)
+
+    def real(self):
+        if self._scalar:
+            return self._array.real
+        raise TypeError("Tensor is not a scalar")
+
     def sum(self, rhs):
         # Perform sum with transposes
         arg_indices = np.argsort(np.array(self._indices))

@@ -36,7 +36,7 @@ GAMMA_3 = np.array([[0, 0, 1, 0],
                     [-1, 0, 0, 0],
                     [0, 1, 0, 0]])
 
-CHARGE_CONJ = 1j*np.einsum('ij,jk->ik', GAMMA_2, GAMMA_0)
+CHARGE_CONJ = -1j*GAMMA_2
 
 GAMMA_5 = 1j*np.einsum('ij,jk,kl,lm->im', GAMMA_0, GAMMA_1, GAMMA_2, GAMMA_3)
 GAMMA_MU = np.array([GAMMA_0, GAMMA_1, GAMMA_2, GAMMA_3])
@@ -83,6 +83,8 @@ class Metric(lt.Tensor):
 # TODO: Figure out how to handle momentum correctly
 class Momentum(lt.Tensor):
     def __init__(self, p, mu, n):
+        if not isinstance(mu, lt.Index):
+            mu = lt.LorentzIndex(mu)
         super().__init__(p[n], [mu])
 
 
@@ -135,3 +137,75 @@ class Epsilon(lt.Tensor):
         if not isinstance(mu4, lt.Index):
             mu4 = lt.LorentzIndex(mu4)
         super().__init__(EPS, (mu1, mu2, mu3, mu4))
+
+
+class SpinorV(lt.Tensor):
+    def __init__(self, mom, i, n, spin):
+        if not isinstance(i, lt.Index):
+            i = lt.SpinIndex(i)
+        p = mom[n]
+        m = np.sqrt(p[0]**2-(np.sum(p[1:]**2))+0j)
+        if spin == 0:
+            vector = np.array([
+                m+p[0]-p[3], -p[1]-1j*p[2], -m-p[0]-p[3], -p[1]-1j*p[2]
+            ])
+        else:
+            vector = np.array([
+                -p[1]+1j*p[2], m+p[0]+p[3],  -p[1]+1j*p[2], -m-p[0]+p[3]
+            ])
+        vector /= np.sqrt(2*(p[0]+m))
+        super().__init__(vector, [i])
+
+
+class SpinorVBar(lt.Tensor):
+    def __init__(self, mom, i, n, spin):
+        if not isinstance(i, lt.Index):
+            i = lt.SpinIndex(i)
+        p = mom[n]
+        m = np.sqrt(p[0]**2-(np.sum(p[1:]**2))+0j)
+        if spin == 0:
+            vector = np.array([
+                -m-p[0]-p[3], -p[1]-1j*p[2], m+p[0]-p[3], -p[1]-1j*p[2]
+            ])
+        else:
+            vector = np.array([
+                -p[1]+1j*p[2], -m-p[0]+p[3],  -p[1]+1j*p[2], m+p[0]+p[3]
+            ])
+        vector /= np.sqrt(2*(p[0]+m))
+        super().__init__(vector.conjugate(), [i])
+
+
+class SpinorU(lt.Tensor):
+    def __init__(self, mom, i, n, spin):
+        if not isinstance(i, lt.Index):
+            i = lt.SpinIndex(i)
+        p = mom[n]
+        m = np.sqrt(p[0]**2-(np.sum(p[1:]**2))+0j)
+        if spin == 0:
+            vector = np.array([
+                m+p[0]-p[3], -p[1]-1j*p[2], m+p[0]+p[3], p[1]+1j*p[2]
+            ])
+        else:
+            vector = np.array([
+                -p[1]+1j*p[2], m+p[0]+p[3], p[1]-1j*p[2], m+p[0]-p[3]
+            ])
+        vector /= np.sqrt(2*(p[0]+m))
+        super().__init__(vector, [i])
+
+
+class SpinorUBar(lt.Tensor):
+    def __init__(self, mom, i, n, spin):
+        if not isinstance(i, lt.Index):
+            i = lt.SpinIndex(i)
+        p = mom[n]
+        m = np.sqrt(p[0]**2-(np.sum(p[1:]**2))+0j)
+        if spin == 0:
+            vector = np.array([
+                m+p[0]+p[3], p[1]+1j*p[2], m+p[0]-p[3], -p[1]-1j*p[2]
+            ])
+        else:
+            vector = np.array([
+                p[1]-1j*p[2], m+p[0]-p[3], -p[1]+1j*p[2], m+p[0]+p[3]
+            ])
+        vector /= np.sqrt(2*(p[0]+m))
+        super().__init__(vector.conjugate(), [i])

@@ -36,8 +36,8 @@ def test_ufo_metric():
 
 
 def test_charge_conj():
-    # C*C = -I_4
-    assert(ufo("C(0, 1)*C(1, 2)") == -ls.Identity(0, 2))
+    # C*C = I_4
+    assert(ufo("C(0, 1)*C(1, 2)") == ls.Identity(0, 2))
 
 
 # Testing gamma matrix identities from:
