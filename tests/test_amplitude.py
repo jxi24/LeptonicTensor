@@ -95,22 +95,12 @@ def test_eemumu_amplitude():
     q2 = float((ls.Momentum(mom, 0, 4)*ls.Metric(0, 1)*ls.Momentum(mom, 1, 4)))
     t = float((ls.Momentum(mom, 0, 5)*ls.Metric(0, 1)*ls.Momentum(mom, 1, 5)))
     u = float((ls.Momentum(mom, 0, 6)*ls.Metric(0, 1)*ls.Momentum(mom, 1, 6)))
-    print(q2, t, u, q2 + t + u)
     total = 0
     total2 = 0
     for spin0 in range(2):
         for spin1 in range(2):
             for spin2 in range(2):
                 for spin3 in range(2):
-                    # exact = (1j*ee**2 / q2
-                    #          * ls.SpinorVBar(mom, 2, 1, spin1)
-                    #          * ls.Gamma(0, 2, 3)
-                    #          * ls.SpinorU(mom, 3, 0, spin2)
-                    #          * ls.SpinorUBar(mom, 4, 2, spin3)
-                    #          * ls.Gamma(1, 4, 5)
-                    #          * ls.SpinorV(mom, 5, 3, spin4)
-                    #          * ls.Metric(0, 1))
-                    # total += complex(exact)
                     total += (ls.SpinorVBar(mom, 1, 1, spin1)
                               * ls.Gamma(0, 1, 0)
                               * ls.SpinorU(mom, 0, 0, spin0)
