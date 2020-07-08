@@ -2,20 +2,27 @@ import models
 import particle_class as pc
 import lorentz_class as lc
 import coupling_class as cc
+import propagator_class as propc
 import ufo_grammer
 
 class Model:
     def __init__(self, name, all_models):
         self.name = name
         self.model = all_models[name]
+        ufo = ufo_grammer.UFOParser(self.model)
         self.couplings = self.model.all_couplings
         self.parameters = self.model.all_parameters
+        self.lorentzs = self.model.all_lorentz
+        self.propagators = self.model.all_propagators
+        self.vertices = self.model.all_vertices
+        
         self.particle_map = self._particle_map()
         self.vertex_map = self._vertex_map()
         self.propagator_map = self._propagator_map()
         self.lorentz_map = self._lorentz_map()
-        self.parameter_map = self._parameter_map()
-        self.coupling_map = self._coupling_map()
+        parameter_coupling_maps = self._parameter_coupling_map()
+        self.parameter_map = parameter_coupling_maps[0]
+        self.coupling_map = parameter_coupling_maps[1]
         
 
     def _particle_map(self):
@@ -26,73 +33,61 @@ class Model:
                 continue
             test = pc.ParticleInfo(part)
             part_map[test.pid] = test
-
-        # for key, value in part_map.items():
-        #     print(key, value)
         return part_map
 
     def _vertex_map(self):
-        vertices = self.model.all_vertices
         vert_map = {}
-        for vertex in vertices:
+        for vertex in self.vertices:
             particles = vertex.particles
-            # print(vertex.lorentz, particles)
             pids = []
             for part in particles:
                 pids.append(part.pdg_code)
             pids.sort()
-            # print(pids)
             vert_map[tuple(pids)] = vertex
         return vert_map
 
     def _propagator_map(self):
-        propagators = self.model.all_propagators
         prop_map = {}
-        for prop in propagators:
-            prop_map[prop.name] = prop
+        for prop in self.propagators:
+            try:
+                pgt = propc.PropagatorInfo(self.model, prop)
+                prop_map[pgt.name] = [pgt.structure, pgt.indices, pgt.tensor]
+            except:
+                pass
         return prop_map
 
     def _lorentz_map(self):
-        # Particle class/UFO convention: spin = 2*S
-        lorentzs = self.model.all_lorentz
+        # Spin here = 2*S
         lorentz_map = {}
-        for lorentz in lorentzs:
+        for lorentz in self.lorentzs:
+            # Momentum is still not working.
             try:
-                ltz = lc.LorentzInfo(lorentz)
-                lorentz_map[tuple(ltz.spins), ltz.name] = [ltz.structure, ltz.indices]
+                ltz = lc.LorentzInfo(self.model, lorentz)
+                lorentz_map[tuple(ltz.spins), ltz.name] = [ltz.structure, ltz.indices, ltz.tensor]
             except:
                 pass
         return lorentz_map
     
-    def _parameter_map(self):
+    def _parameter_coupling_map(self):
         parameter_map = {}
+        coupling_map = {}
+        ufo = ufo_grammer.UFOParser(self.model)
         for parameter in self.parameters:
             try:
-                print(parameter.name, parameter.value)
-                param = ufo_grammer.ufo("{} := {}".format(parameter.name, parameter.value))
-                parameter_map[parameter.name] = param
+                ufo("{} := {}".format(parameter.name, parameter.value))
+                parameter_map[parameter.name] = ufo(parameter.name)
             except:
-                print('failed')
-            # if parameter.nature == 'external':
-            #     param = ufo_grammer.ufo("{} := {}".format(parameter.name, parameter.value))
-            #     parameter_map[parameter.name] = param
-            # elif parameter.nature == 'internal':
-            #     if parameter.name == 'ZERO':
-            #         parameter_map[parameter.name] = 0.0
-            #     try:
-            #         param = ufo_grammer.ufo(parameter.value)
-            #         parameter_map[parameter.name] = param
-            #     except:
-            #         pass
-        return parameter_map
-    
-    def _coupling_map(self):
-        coupling_map = {}
+                parameter_map[parameter.name] = None
+            
         for coupling in self.couplings:
-            cp = cc.CouplingInfo(coupling)
-            coupling_map[cp.name] = cp.value
-        return coupling_map
-
+            try:
+                ufo("{} := {}".format(coupling.name, coupling.value))
+                coupling_map[coupling.name] = ufo(coupling.name)
+            except:
+                coupling_map[coupling.name] = None
+        
+        return [parameter_map, coupling_map]
+    
     @property
     def particles(self):
         return (', ').join(list(self.particle_map.keys()))

@@ -183,7 +183,7 @@ MW = Parameter(name = 'MW',
 ee = Parameter(name = 'ee',
                nature = 'internal',
                type = 'real',
-               value = '2*sqrt(aEW)*sqrt(pi)',
+               value = '2*cmath.sqrt(aEW)*cmath.sqrt(cmath.pi)',
                texname = 'e')
 
 sw2 = Parameter(name = 'sw2',
