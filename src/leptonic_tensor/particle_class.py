@@ -66,22 +66,19 @@ class ParticleInfo:
             pass
 
 class Particle:
-    def __init__(self, model, pid: int, mom_array: np.array, spin_index: int, mom_index: int, incoming: bool):
+    def __init__(self, model, pid: int, mom_array: np.array, index: int, mom_index: int, incoming: bool):
         self.model = model
         self.pid = pid
         self.mom_array = mom_array
-        self.spin_index = spin_index
+        self.index = index
         self.mom_index = mom_index
         self.incoming = incoming
         
         self.momentum = self.mom_array[self.mom_index]
         self.spin = 0
-        #self.spinor = self._get_spinor()
-        #self.spinor_conj = self._get_conjugate()
         try:
             self.info = model.particle_map[self.pid]
         except:
-            # Particle is its own antiparticle.
             self.info = model.particle_map[-self.pid]
 
     def anti(self):
@@ -102,31 +99,7 @@ class Particle:
                 return ls.SpinorUBar(self.mom_array, self.spin_index, self.mom_index, self.spin)
             elif self.pid < 0:
                 return ls.SpinorV(self.mom_array, self.spin_index, self.mom_index, self.spin)
-        
-        # if self.incoming:
-        #     return self.anti().wavefunction()
-        # else:
-        #     if self.info.spin == 0:
-        #         return ''
-        #     if self.info.spin == 1:
-        #         if self.info.pid < 0:
-        #             return 'v(p_[{}, {}])'.format(self.info.name, self.momentum)
-        #         if self.info.pid > 0:
-        #             return 'ubar(p_[{}, {}])'.format(self.info.name, self.momentum)
-        #     if self.info.spin == 2:
-        #         return 'epsilon*(p_[{}, {}])'.format(self.info.name, self.momentum)
-        #     else:
-        #         pass
 
     def __str__(self):
-        return 'Particle({}, {})'.format(self.momentum, self.info)
+        return 'Particle({}, {}, {})'.format(self.momentum, self.index, self.info)
     
-    def set_spin(self, spin):
-        self.spin = spin
-        return self.spin
-    
-    # def conjugate(self, spin_index):
-    #     if isinstance(self.spinor, ls.SpinorU):
-    #         return 
-
-

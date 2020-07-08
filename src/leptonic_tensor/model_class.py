@@ -60,7 +60,6 @@ class Model:
         # Spin here = 2*S
         lorentz_map = {}
         for lorentz in self.lorentzs:
-            # Momentum is still not working.
             try:
                 ltz = lc.LorentzInfo(self.model, lorentz)
                 lorentz_map[tuple(ltz.spins), ltz.name] = [ltz.structure, ltz.indices, ltz.tensor]
