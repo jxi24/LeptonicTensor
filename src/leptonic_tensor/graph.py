@@ -1,5 +1,5 @@
 import numpy as np
-import matplotlib.pyplot as plt
+# import pylatex
 import itertools
 
 
@@ -12,6 +12,14 @@ class Graph:
     @property
     def nodes(self):
         return list(self.graph.keys())
+
+    @property
+    def external_nodes(self):
+        external = []
+        for node in list(self.graph.keys()):
+            if self.degree(node) == 1:
+                external.append(node)
+        return external
 
     @property
     def edges(self):
@@ -29,6 +37,10 @@ class Graph:
     @property
     def n_edges(self):
         return len(self.edges)
+
+    @property
+    def n_external(self):
+        return len(self.external_nodes)
 
     @property
     def adjacency_matrix(self):
@@ -62,6 +74,10 @@ class Graph:
             self.graph[node1].append(node2)
         else:
             self.graph[node1] = [node2]
+        if node2 in self.graph:
+            self.graph[node2].append(node1)
+        else:
+            self.graph[node2] = [node1]
 
     def is_connected(self, nodes_encountered=None, start_node=None):
         if nodes_encountered is None:
@@ -87,6 +103,12 @@ class Graph:
 
     def __repr__(self):
         return f'Graph({self.graph})'
+
+#    def draw(self, doc):
+#        doc.append(pylatex.NoEscape('\\feynmandiagram[large]{\n'))
+#        for edge in self.edges:
+#            doc.append(pylatex.NoEscape(f'a{edge[0]} -- a{edge[1]},\n'))
+#        doc.append(pylatex.NoEscape('};\n'))
 
 
 def PruferToTree(a):
@@ -132,8 +154,9 @@ def generate_trees(order):
     while layout is not None:
         layout = _get_next(layout)
         if layout is not None:
-            # if _check_allowed(layout):
-            yield layout
+            allowed, graph = _check_allowed(layout)
+            if allowed:
+                yield graph
         layout = _successor(layout)
 
 
@@ -200,20 +223,53 @@ def _split(layout):
 
 
 def _check_allowed(layout):
-    unique, counts = np.unique(layout, return_counts=True)
-    return np.any(counts == 2 or counts > 4)
+    graph = to_graph(layout)
+    for degree in graph.degree_sequence:
+        if degree == 2 or degree > 4:
+            return False, None
+    return True, graph
+
+
+def to_graph(layout):
+    result = [[0]*len(layout) for i in range(len(layout))]
+    graph = Graph()
+    stack = []
+    for i in range(len(layout)):
+        graph.add_node(i)
+        i_level = layout[i]
+        if stack:
+            j = stack[-1]
+            j_level = layout[j]
+            while j_level >= i_level:
+                stack.pop()
+                j = stack[-1]
+                j_level = layout[j]
+            graph.add_edge((i, j))
+        stack.append(i)
+    return graph
 
 
 if __name__ == '__main__':
-    # import matplotlib.pyplot as plt
-    # import networkx as nx
-    # print(nx.generators.number_of_nonisomorphic_trees(20))
-    import timeit
-    order = 30
-    number = 1
-    ngraphs = sum(1 for i in generate_trees(order))
-    total = timeit.timeit("sum(1 for i in generate_trees({}))".format(order),
-                          setup="from __main__ import generate_trees",
-                          number=number)/number
-    print(f"Order: {order}\nngraphs: {ngraphs}")
-    print(f"Total Time: {total}\nTime Per Graph: {total/ngraphs}")
+    # doc = pylatex.Document('basic')
+    # doc.packages.append(pylatex.Package(pylatex.NoEscape('tikz-feynman')))
+    n_external = 6
+    orders = []
+    for n3 in range(0, n_external-1):
+        for n4 in range(0, n_external//2):
+            if n3+2*n4 == n_external-2:
+                orders.append(n3+n4+n_external)
+    print(set(orders))
+    ngraphs = 0
+    for order in set(orders):
+        graphs = generate_trees(order)
+        for graph in graphs:
+            if n_external == graph.n_external:
+                print(graph)
+                print(f'Degree Sequence: {graph.degree_sequence}')
+                ngraphs += 1
+                # graph.draw(doc)
+                # doc.append(pylatex.NoEscape('\n'))
+
+    print(ngraphs)
+    # doc.generate_pdf(clean_tex=False)
+    # doc.generate_tex()
