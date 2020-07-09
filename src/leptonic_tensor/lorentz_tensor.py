@@ -107,6 +107,8 @@ class Tensor:
     def __truediv__(self, other):
         if isinstance(other, (int, float, complex)):
             return self*(1/other)
+        elif other._scalar:
+            return self*(1/float(other._array))
         raise TypeError(f"Tensor division is not valid for type {type(other)}")
 
     def __add__(self, other):

@@ -8,81 +8,111 @@ import feyn_rules
 import numpy as np
 import ufo_grammer
 import lorentz_tensor as lt
+import lorentz_structures as ls
+import matplotlib.pyplot as plt
+
+def plot_amp():
+    # Initialize variables.
+    costheta_list = np.linspace(-1,1,1000)
+    phi = 2*np.pi*np.random.uniform()
+    comput_sol = []
+    analytic_sol = []
+    
+    # Compute analytic and computational amplitude for each cos(theta).
+    for costheta in costheta_list:
+        sintheta = np.sqrt(1-costheta**2)
+        mom = np.array(
+            [[10, 0, 0, 10],
+             [10, 0, 0, -10],
+             [10, 10*sintheta*np.cos(phi),
+              10*sintheta*np.sin(phi), 10*costheta],
+             [10, -10*sintheta*np.cos(phi),
+              -10*sintheta*np.sin(phi), -10*costheta]])
+        q = mom[0, :] + mom[1, :]
+        mom = np.append(mom, [q], axis=0)
+        mom = np.append(mom, [mom[0] - mom[2]], axis=0)
+        mom = np.append(mom, [mom[0] - mom[3]], axis=0)
+        
+        q2 = float((ls.Momentum(mom, 0, 4)*ls.Metric(0, 1)*ls.Momentum(mom, 1, 4)))
+        t = float((ls.Momentum(mom, 0, 5)*ls.Metric(0, 1)*ls.Momentum(mom, 1, 5)))
+        u = float((ls.Momentum(mom, 0, 6)*ls.Metric(0, 1)*ls.Momentum(mom, 1, 6)))
+    
+        elec = pc.Particle(model, 11, mom, 1, 0, True)
+        antielec = pc.Particle(model, -11, mom, 2, 1, True)
+        muon = pc.Particle(model, 13, mom, 3, 2, False)
+        antimuon = pc.Particle(model, -13, mom, 4, 3, False)
+        photon = pc.Particle(model, 22, mom, 0, 4, False)
+    
+        InP = [elec, antielec]
+        OutP = [muon, antimuon]
+        IntP = [photon]
+        
+        Amp1 = feyn_rules.FeynRules(model, InP, OutP, IntP)
+        analytic = 8*ee**4*(t*t+u*u)/q2**2
+        
+        comput_sol.append(Amp1.amplitude.real)
+        analytic_sol.append(analytic)
+    
+    # Plot amplitudes and amplitude error vs cos(theta).
+    fig, axs = plt.subplots(nrows=1, ncols=2, figsize=(10,5))
+    
+    axs[0,].plot(costheta_list, comput_sol, color='red')
+    axs[0,].plot(costheta_list, analytic_sol, color='blue')
+    axs[0,].set_xlabel("Cos(theta)")
+    axs[0,].legend(["Computational","Analytic"])    
+    
+    axs[1,].plot(costheta_list, np.subtract(comput_sol, analytic_sol))
+    axs[1,].set_xlabel("Cos(theta)")
+    
+    fig.suptitle("Comparison of amplitudes for phi={}".format(phi))
+    fig.savefig("ee2mumu.pdf")
 
 def main():
+    # Initialize model.
     all_models = models.discover_models()
     model = mc.Model('Models.SM_NLO', all_models)
     
-    elec = pc.Particle(model, 11, 1, True)
-    antielec = pc.Particle(model, -11, 2, True)
-    muon = pc.Particle(model, 13, 3, False)
-    antimuon = pc.Particle(model, -13, 4, False)
-    photon = pc.Particle(model, 22, 0, False)
+    # Initialize momenta.
+    costheta = 2*np.random.uniform()-1
+    sintheta = np.sqrt(1-costheta**2)
+    phi = 2*np.pi*np.random.uniform()
+    mom = np.array(
+        [[10, 0, 0, 10],
+         [10, 0, 0, -10],
+         [10, 10*sintheta*np.cos(phi),
+          10*sintheta*np.sin(phi), 10*costheta],
+         [10, -10*sintheta*np.cos(phi),
+          -10*sintheta*np.sin(phi), -10*costheta]])
+    q = mom[0, :] + mom[1, :]
+    mom = np.append(mom, [q], axis=0)
+    mom = np.append(mom, [mom[0] - mom[2]], axis=0)
+    mom = np.append(mom, [mom[0] - mom[3]], axis=0)
+    
+    # Initialize particles with spin index and momentum index.
+    elec = pc.Particle(model, 11, mom, 1, 0, True)
+    antielec = pc.Particle(model, -11, mom, 2, 1, True)
+    muon = pc.Particle(model, 13, mom, 3, 2, False)
+    antimuon = pc.Particle(model, -13, mom, 4, 3, False)
+    photon = pc.Particle(model, 22, mom, 0, 4, False)
     
     InP = [elec, antielec]
     OutP = [muon, antimuon]
     IntP = [photon]
-    
-    l = lc.Lorentz(model, [1,1,2], 'FFV1', [1,2,5])
-    print(l)
-    
-    vert1 = vc.Vertex(model, [elec, antielec, photon], [elec.momentum,antielec.momentum,photon.momentum])
-    #V1 = lt.Tensor(vert1.structure, vert1.indices)
-    print(vert1)
-    
-    gl1 = pc.Particle(model, 21, 1, True)
-    gl2 = pc.Particle(model, 21, 2, False)
-    gl3 = pc.Particle(model, 21, 3, False)
-    
-    #vert2 = vc.Vertex(model, [gl1, gl2, gl3], [1,2,3])
-    #print(vert2)
-    
-    print(model.parameter_map)
-    #print(model.coupling_map)
-    print(model.parameter_map['aEWM1'])
-    print(model.parameter_map['ee'])
-    print(model.parameter_map['aEW'])
 
-    # pids1 = [particles[-11].pid,
-    #          particles[11].pid,
-    #          particles[22].pid]
-    # pids1.sort()
-    # print(pids1)
-    # vertex1 = model.vertex_map[tuple(pids1)]
-    # print(vertex1.lorentz[0].structure, vertex1.couplings[(0, 0)].value)
-    # vertexA = vertex1.lorentz[0].structure.replace('3', 'mu').replace('2', 'e-').replace('1', 'e+')
-
-    # pids2 = [particles[-13].pid,
-    #          particles[13].pid,
-    #          particles[22].pid]
-    # pids2.sort()
-    # print(pids2)
-    # vertex2 = model.vertex_map[tuple(pids2)]
-    # print(vertex2.lorentz[0].structure, vertex2.couplings[(0, 0)].value)
-    # vertexB = vertex2.lorentz[0].structure.replace('3', 'nu').replace('2', 'mu-').replace('1', 'mu+')
-
-    # propagator = model.propagator_map[particles[22].propagator]
-    # propagatorA = propagator.numerator.replace('1','mu').replace('2','nu') + '/' + propagator.denominator
-    # print("({})/({})".format(propagator.numerator, propagator.denominator))
-
-    # amp = ['ubar(p2)', vertexA, 'v(p1)', propagatorA, 'vbar(p3)', vertexB, 'u(p4)']
-    # print('*'.join(amp))
-
-    # amp1 = feyn_rules.FeynRules(model, incoming_particles, outgoing_particles, internal_particles)
-    # print('Incoming wavefunction for {}: {}'.format(particles['e-'].name, particles['e-'].wavefunction[0]))
-    # print("\n")
-    # print(amp1.amplitude())
-    # print("\n")
-    # print(amp1._get_vertex(outgoing_particles, internal_particles))
-    # amp2 = feyn_rules.FeynRules(model, incoming_particles, outgoing_particles, [particles[23]])
-    # print(amp2.amplitude())
-    
+    # Compute amplitude.
     Amp1 = feyn_rules.FeynRules(model, InP, OutP, IntP)
-    #print(Amp1.amplitude())
     
-    #Zboson = Particle(model, 23, 0, False)
-    #Amp2 = feyn_rules.FeynRules(model, InP, OutP, [Zboson])
-    #print(Amp2.amplitude())
-
+    # Compare with analytic solution.
+    q2 = float((ls.Momentum(mom, 0, 4)*ls.Metric(0, 1)*ls.Momentum(mom, 1, 4)))
+    t = float((ls.Momentum(mom, 0, 5)*ls.Metric(0, 1)*ls.Momentum(mom, 1, 5)))
+    u = float((ls.Momentum(mom, 0, 6)*ls.Metric(0, 1)*ls.Momentum(mom, 1, 6)))
+    
+    ee = model.parameter_map["ee"]
+    analytic = 8*ee**4*(t*t+u*u)/q2**2
+    
+    print("Computational solution: {}".format(Amp1.amplitude))
+    print("Analytic solution: {}".format(analytic))
+    print("Ratio: {}".format(analytic/Amp1.amplitude))
+    
 if __name__ == '__main__':
     main()
