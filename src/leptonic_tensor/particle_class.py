@@ -82,7 +82,10 @@ class Particle:
             self.info = model.particle_map[-self.pid]
 
     def anti(self):
-        return Particle(self.model, -self.info.pid, -self.momentum, not self.incoming)
+        new_mom = -self.mom_array[self.mom_index]
+        new_mom_array = self.mom_array
+        new_mom_array[self.mom_index] = new_mom
+        return Particle(self.model, -self.pid, new_mom_array, self.index, self.mom_index, not self.incoming)
 
     def get_spinor(self):
         '''
@@ -91,14 +94,14 @@ class Particle:
         '''
         if self.incoming:
             if self.pid > 0:
-                return ls.SpinorU(self.mom_array, self.spin_index, self.mom_index, self.spin)
+                return ls.SpinorU(self.mom_array, self.index, self.mom_index, self.spin)
             elif self.pid < 0:
-                return ls.SpinorVBar(self.mom_array, self.spin_index, self.mom_index, self.spin)
+                return ls.SpinorVBar(self.mom_array, self.index, self.mom_index, self.spin)
         elif not self.incoming:
             if self.pid > 0:
-                return ls.SpinorUBar(self.mom_array, self.spin_index, self.mom_index, self.spin)
+                return ls.SpinorUBar(self.mom_array, self.index, self.mom_index, self.spin)
             elif self.pid < 0:
-                return ls.SpinorV(self.mom_array, self.spin_index, self.mom_index, self.spin)
+                return ls.SpinorV(self.mom_array, self.index, self.mom_index, self.spin)
 
     def __str__(self):
         return 'Particle({}, {}, {})'.format(self.momentum, self.index, self.info)

@@ -11,12 +11,13 @@ import lorentz_tensor as lt
 import lorentz_structures as ls
 import matplotlib.pyplot as plt
 
-def plot_amp():
+def plot_amp(model):
     # Initialize variables.
     costheta_list = np.linspace(-1,1,1000)
     phi = 2*np.pi*np.random.uniform()
     comput_sol = []
     analytic_sol = []
+    ee = model.parameter_map["ee"]
     
     # Compute analytic and computational amplitude for each cos(theta).
     for costheta in costheta_list:
