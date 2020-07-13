@@ -35,6 +35,7 @@ def plot_amp(model):
         t = float((ls.Momentum(mom, 0, 5)*ls.Metric(0, 1)*ls.Momentum(mom, 1, 5)))
         u = float((ls.Momentum(mom, 0, 6)*ls.Metric(0, 1)*ls.Momentum(mom, 1, 6)))
     
+        #print(t)
         # Initialize particles with spin index and momentum index.
         elec = pc.Particle(model, 11, mom, 1, 0, True)
         antielec = pc.Particle(model, -11, mom, 2, 1, True)
@@ -54,7 +55,7 @@ def plot_amp(model):
             Amp1 = 0
             #comput_sol.append(Amp1)
         try:
-            analytic = 2*ee**4*((u*u + s*s)/t**2 + 2*u*u/(s*t) + (u*u + t*t)/s**2)
+            analytic = 8*ee**4*((u*u + s*s)/t**2 + 2*u*u/(s*t) + (u*u + t*t)/s**2)
         except:
             analytic = 0
         
@@ -71,10 +72,13 @@ def plot_amp(model):
     axs[0,0].plot(costheta_list, comput_sol, color='red')
     axs[0,0].plot(costheta_list, analytic_sol, color='blue')
     axs[0,0].set_xlabel("Cos(theta)")
+    axs[0,0].set_ylabel("|M|^2")
+    axs[0,0].semilogy()
     axs[0,0].legend(["Computational","Analytic"])    
     
-    axs[1,0].plot(costheta_list, np.subtract(comput_sol, analytic_sol))
-    axs[1,0].set_xlabel("Cos(theta)")
+    axs[0,1].plot(costheta_list, np.subtract(comput_sol, analytic_sol)/analytic_sol)
+    axs[0,1].set_xlabel("Cos(theta)")
+    axs[0,1].set_ylabel("delta |M|^2 / |M|_ana")
     
     # Cut-off data
     epsilon = 0.5
@@ -82,15 +86,19 @@ def plot_amp(model):
     s = len(analytic_cut)
     costheta_cut = costheta_list[0:s]
     comput_cut = comput_sol[0:s]
-    axs[0,1].plot(costheta_cut, comput_cut, color='red')
-    axs[0,1].plot(costheta_cut, analytic_cut, color='blue')
-    axs[0,1].set_xlabel("Cos(theta)")
-    axs[0,1].legend(["Computational","Analytic"])
+    axs[1,0].plot(costheta_cut, comput_cut, color='red')
+    axs[1,0].plot(costheta_cut, analytic_cut, color='blue')
+    axs[1,0].set_xlabel("Cos(theta)")
+    axs[1,0].set_ylabel("|M|^2")
+    axs[1,0].semilogy()
+    axs[1,0].legend(["Computational","Analytic"])
     
-    axs[1,1].plot(costheta_cut, np.subtract(comput_cut, analytic_cut))
+    axs[1,1].plot(costheta_cut, np.subtract(comput_cut, analytic_cut)/analytic_cut)
     axs[1,1].set_xlabel("Cos(theta)")
+    axs[1,1].set_ylabel("delta |M|^2 / |M|_ana")
     
-    fig.suptitle("Comparison of amplitudes for phi={:.2f}, epsilon={:.2f}".format(phi, epsilon))
+    fig.suptitle("Bhabha scattering\nComparison of amplitudes for phi={:.2f}, epsilon={:.2f}".format(phi, epsilon),
+                 fontsize='x-large')
     fig.savefig("bhabha_scattering.pdf")
 
 def main():
@@ -100,6 +108,7 @@ def main():
     
     # Initialize momenta.
     costheta = 2*np.random.uniform()-1
+    #costheta = 0
     sintheta = np.sqrt(1-costheta**2)
     phi = 2*np.pi*np.random.uniform()
     mom = np.array(
@@ -110,7 +119,6 @@ def main():
          [10, -10*sintheta*np.cos(phi),
           -10*sintheta*np.sin(phi), -10*costheta]])
     
-    #q = mom[0, :] + mom[1, :]
     mom = np.append(mom, [mom[0] + mom[1]], axis=0) # s-channel momentum
     mom = np.append(mom, [mom[0] - mom[2]], axis=0) # t-channel momentum
     mom = np.append(mom, [mom[0] - mom[3]], axis=0) # u-channel momentum
@@ -134,8 +142,9 @@ def main():
     t = float((ls.Momentum(mom, 0, 5)*ls.Metric(0, 1)*ls.Momentum(mom, 1, 5)))
     u = float((ls.Momentum(mom, 0, 6)*ls.Metric(0, 1)*ls.Momentum(mom, 1, 6)))
     
+    #print(t)
     ee = model.parameter_map["ee"]
-    analytic = 2*ee**4*((u*u + s*s)/t**2 + 2*u*u/(s*t) + (u*u + t*t)/s**2)
+    analytic = 8*ee**4*((u*u + s*s)/t**2 + 2*u*u/(s*t) + (u*u + t*t)/s**2)
     
     # print("Computational solution: {}".format(Amp1.amplitude))
     # print("Analytic solution: {}".format(analytic))
