@@ -1,6 +1,7 @@
 import vertex_class as vc
 import lorentz_structures as ls
 import ufo_grammer
+import numpy as np
 
 class FeynRules:
     def __init__(self, model, incoming_particles, outgoing_particles, internal_particles):
@@ -9,11 +10,21 @@ class FeynRules:
         with internal particles.
         '''
         self.model = model
-        # self.incoming = incoming_particles
+        # All particles considered outgoing
         self.incoming = [part.anti() for part in incoming_particles]
         self.outgoing = outgoing_particles
         self.internal = internal_particles
-        # All particles considered outgoing
+        
+        # Update momentum array of particles.
+        part_list = self.incoming + self.outgoing
+        mom = np.empty_like(self.outgoing[0].mom_array[0:4])
+        for part in part_list:
+            mom[part.mom_index] = part.mom_array[part.mom_index]
+        mom = np.append(mom, [mom[0] + mom[1]], axis=0) # s-channel momentum
+        mom = np.append(mom, [mom[0] - mom[2]], axis=0) # t-channel momentum
+        mom = np.append(mom, [mom[0] - mom[3]], axis=0) # u-channel momentum
+        for part in part_list:
+            setattr(part,'mom_array',mom)
         
         self.pids = self._get_pids()
         # self.vertices = self._get_vertices()
@@ -61,10 +72,8 @@ class FeynRules:
         coup1 = vertices[0].coupling[0][0] # -0.313451j
         coup2 = vertices[1].coupling[0][0] # -0.313451j
         
-        ufo = ufo_grammer.UFOParser(self.model.model)
-        
         ph = self.internal[0]
-        propagator = ufo("complex(0,-1) * Metric(0, 1)")
+        propagator = -1j*ls.Metric(0,1)
         propagator /= ls.Momentum(ph.mom_array, 10, ph.mom_index)*ls.Metric(10, 11)*ls.Momentum(ph.mom_array, 11, ph.mom_index)
         # Propagator(0,1)
         
@@ -78,20 +87,21 @@ class FeynRules:
         
         vertices = self._get_vertices(part_list1, part_list2)
         vert1 = vertices[0].tensor[0] # Gamma(0,3,1)
-        vert2 = vertices[1].tensor[0] # Gamma(1,4,2)
+        #vert2 = ls.Gamma(1,2,4)
+        vert2 = vertices[1].tensor[0] # Gamma(1,4,2) should be 1,2,4.
+        #print(vert1, vert2)
         
         coup1 = vertices[0].coupling[0][0] # -0.313451j
         coup2 = vertices[1].coupling[0][0] # -0.313451j
         
-        ufo = ufo_grammer.UFOParser(self.model.model)
-        
         ph = self.internal[0]
-        propagator = ufo("complex(0,-1) * Metric(0, 1)")
+        propagator = -1j*ls.Metric(0,1)
+        #print(ls.Momentum(ph.mom_array, 10, ph.mom_index+1)*ls.Metric(10, 11)*ls.Momentum(ph.mom_array, 11, ph.mom_index+1))
         propagator /= ls.Momentum(ph.mom_array, 10, ph.mom_index+1)*ls.Metric(10, 11)*ls.Momentum(ph.mom_array, 11, ph.mom_index+1)
         # Propagator(0,1)
         
         M_t_channel = coup1*coup2*vert1*vert2*spinor1*spinor2*spinor3*spinor4*propagator
-        
+    
         return M_t_channel
     
     def _u_channel_amplitude(self, spinor1, spinor2, spinor3, spinor4):
@@ -105,10 +115,8 @@ class FeynRules:
         coup1 = vertices[0].coupling[0][0] # -0.313451j
         coup2 = vertices[1].coupling[0][0] # -0.313451j
         
-        ufo = ufo_grammer.UFOParser(self.model.model)
-        
         ph = self.internal[0]
-        propagator = ufo("complex(0,-1) * Metric(0, 1)")
+        propagator = -1j*ls.Metric(0,1)
         propagator /= ls.Momentum(ph.mom_array, 10, ph.mom_index+2)*ls.Metric(10, 11)*ls.Momentum(ph.mom_array, 11, ph.mom_index+2)
         # Propagator(0,1)
         
@@ -133,12 +141,10 @@ class FeynRules:
                         spinor4 = self.outgoing[1].get_spinor() # mu+ SpinorV(4)
                         
                         if (all(pid > 0 for pid in self.pids)) or (all(pid < 0 for pid in self.pids)):
-                            M_t_channel = self._t_channel_amplitude(spinor1, spinor2, spinor3, spinor4)
+                            M_tot = 0
+                            M_tot += self._t_channel_amplitude(spinor1, spinor2, spinor3, spinor4)
                             if self.outgoing[0].pid == self.outgoing[1].pid:
-                                M_u_channel = self._u_channel_amplitude(spinor1, spinor2, spinor3, spinor4)
-                                M_tot = M_t_channel + M_u_channel
-                            else:
-                                M_tot = M_t_channel
+                                M_tot += self._u_channel_amplitude(spinor1, spinor2, spinor3, spinor4)
                             total += M_tot*M_tot.conjugate()
                         
                         elif (any(pid > 0 for pid in self.pids)) and (any(pid < 0 for pid in self.pids)):
@@ -198,20 +204,13 @@ class FeynRules:
                                     break
                             
                             # print(scatter, annihilation)
-                            
+                            M_tot = 0
                             if scatter:
-                                M_t_channel = self._t_channel_amplitude(spinor1, spinor2, spinor3, spinor4)
+                                M_tot += self._t_channel_amplitude(spinor1, spinor2, spinor3, spinor4)
                                 if self.outgoing[0].pid == self.outgoing[1].pid:
-                                    M_u_channel = self._u_channel_amplitude(spinor1, spinor2, spinor3, spinor4)
-                                    M_tot1 = M_t_channel + M_u_channel
-                                else:
-                                    M_tot1 = M_t_channel
+                                    M_tot += self._u_channel_amplitude(spinor1, spinor2, spinor3, spinor4)
                             if annihilation:
-                                M_s_channel = self._s_channel_amplitude(spinor1, spinor2, spinor3, spinor4)
-                                try:
-                                    M_tot = M_s_channel + M_tot1
-                                except:
-                                    M_tot = M_s_channel
+                                M_tot += self._s_channel_amplitude(spinor1, spinor2, spinor3, spinor4)
                                 
                             total += M_tot*M_tot.conjugate()
                         

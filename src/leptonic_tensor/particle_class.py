@@ -82,9 +82,8 @@ class Particle:
             self.info = model.particle_map[-self.pid]
 
     def anti(self):
-        new_mom = -self.mom_array[self.mom_index]
         new_mom_array = self.mom_array
-        new_mom_array[self.mom_index] = new_mom
+        new_mom_array[self.mom_index] = -self.mom_array[self.mom_index]
         return Particle(self.model, -self.pid, new_mom_array, self.index, self.mom_index, not self.incoming)
 
     def get_spinor(self):
