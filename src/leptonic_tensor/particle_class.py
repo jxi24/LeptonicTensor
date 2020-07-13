@@ -87,21 +87,21 @@ class Particle:
         new_mom_array[self.mom_index] = new_mom
         return Particle(self.model, -self.pid, new_mom_array, self.index, self.mom_index, not self.incoming)
 
-    def get_spinor(self):
+    def get_spinor(self, spin):
         '''
         Return outgoing wavefunction of Particle, identified with
         particle name and momentum label number.
         '''
         if self.incoming:
             if self.pid > 0:
-                return ls.SpinorU(self.mom_array, self.index, self.mom_index, self.spin)
+                return ls.SpinorU(self.momentum, self.index, spin)
             elif self.pid < 0:
-                return ls.SpinorVBar(self.mom_array, self.index, self.mom_index, self.spin)
+                return ls.SpinorVBar(self.momentum, self.index, spin)
         elif not self.incoming:
             if self.pid > 0:
-                return ls.SpinorUBar(self.mom_array, self.index, self.mom_index, self.spin)
+                return ls.SpinorUBar(self.momentum, self.index, spin)
             elif self.pid < 0:
-                return ls.SpinorV(self.mom_array, self.index, self.mom_index, self.spin)
+                return ls.SpinorV(self.momentum, self.index, spin)
 
     def __str__(self):
         return 'Particle({}, {}, {})'.format(self.momentum, self.index, self.info)

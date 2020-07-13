@@ -82,10 +82,10 @@ class Metric(lt.Tensor):
 
 # TODO: Figure out how to handle momentum correctly
 class Momentum(lt.Tensor):
-    def __init__(self, p, mu, n):
+    def __init__(self, p, mu):
         if not isinstance(mu, lt.Index):
             mu = lt.LorentzIndex(mu)
-        super().__init__(p[n], [mu])
+        super().__init__(p, [mu])
 
 
 class Identity(lt.Tensor):
@@ -140,10 +140,9 @@ class Epsilon(lt.Tensor):
 
 
 class SpinorV(lt.Tensor):
-    def __init__(self, mom, i, n, spin):
+    def __init__(self, p, i, spin):
         if not isinstance(i, lt.Index):
             i = lt.SpinIndex(i)
-        p = mom[n]
         m = np.sqrt(p[0]**2-(np.sum(p[1:]**2))+0j)
         if spin == 0:
             vector = np.array([
@@ -158,10 +157,9 @@ class SpinorV(lt.Tensor):
 
 
 class SpinorVBar(lt.Tensor):
-    def __init__(self, mom, i, n, spin):
+    def __init__(self, p, i, spin):
         if not isinstance(i, lt.Index):
             i = lt.SpinIndex(i)
-        p = mom[n]
         m = np.sqrt(p[0]**2-(np.sum(p[1:]**2))+0j)
         if spin == 0:
             vector = np.array([
@@ -176,10 +174,9 @@ class SpinorVBar(lt.Tensor):
 
 
 class SpinorU(lt.Tensor):
-    def __init__(self, mom, i, n, spin):
+    def __init__(self, p, i, spin):
         if not isinstance(i, lt.Index):
             i = lt.SpinIndex(i)
-        p = mom[n]
         m = np.sqrt(p[0]**2-(np.sum(p[1:]**2))+0j)
         if spin == 0:
             vector = np.array([
@@ -194,10 +191,9 @@ class SpinorU(lt.Tensor):
 
 
 class SpinorUBar(lt.Tensor):
-    def __init__(self, mom, i, n, spin):
+    def __init__(self, p, i, spin):
         if not isinstance(i, lt.Index):
             i = lt.SpinIndex(i)
-        p = mom[n]
         m = np.sqrt(p[0]**2-(np.sum(p[1:]**2))+0j)
         if spin == 0:
             vector = np.array([
