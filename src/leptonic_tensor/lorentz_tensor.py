@@ -167,6 +167,59 @@ class Tensor:
             return self._array.real
         raise TypeError("Tensor is not a scalar")
 
+    @staticmethod
+    def _merge(arr, temp, left, mid, right):
+        nswaps = 0
+        i = left
+        j = mid
+        k = left
+        while (i <= mid - 1) and (j <= right):
+            if arr[i] <= arr[j]:
+                temp[k] = arr[i]
+                k += 1
+                i += 1
+            else:
+                temp[k] = arr[j]
+                k += 1
+                j += 1
+
+                nswaps = nswaps + (mid - i)
+
+        while i <= mid - 1:
+            temp[k] = arr[i]
+            k += 1
+            i += 1
+
+        while j <= right:
+            temp[k] = arr[j]
+            k += 1
+            j += 1
+
+        for i in range(left, right+1, 1):
+            arr[i] = temp[i]
+
+        return nswaps
+
+    @staticmethod
+    def _merge_sort(arr, temp, left, right):
+        nswaps = 0
+        if right > left:
+            mid = int((right + left)/2)
+            nswaps = Tensor._merge_sort(arr, temp, left, mid)
+            nswaps += Tensor._merge_sort(arr, temp, mid+1, right)
+            nswaps += Tensor._merge(arr, temp, left, mid+1, right)
+
+        return nswaps
+
+    @staticmethod
+    def _swaps(idx):
+        n = len(idx)
+        if n == 0:
+            return 0
+        arr = [int(x) for x in idx]
+        temp = [0 for i in range(n)]
+        return Tensor._merge_sort(arr, temp, 0, n-1)
+
     def sum(self, rhs):
         # Perform sum with transposes
         arg_indices = np.argsort(np.array(self._indices))

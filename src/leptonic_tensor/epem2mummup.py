@@ -10,7 +10,7 @@ import time
 
 def plot_amp(model):
     # Initialize variables.
-    costheta_list = np.linspace(-1, 1, 500)
+    costheta_list = np.linspace(-1, 1, 500, endpoint=False)
     phi = 2*np.pi*np.random.uniform()
     comput_sol = []
     analytic_sol = []
@@ -20,6 +20,7 @@ def plot_amp(model):
     # Compute analytic and computational amplitude for each cos(theta).
     start = time.time()
     for i, costheta in enumerate(costheta_list):
+        pc.Particle.gindex = 0
         sintheta = np.sqrt(1-costheta**2)
         mom = np.array(
             [[10, 0, 0, 10],
@@ -40,11 +41,12 @@ def plot_amp(model):
         t = float((ls.Momentum(p13, 0)*ls.Metric(0, 1)*ls.Momentum(p13, 1)))
         u = float((ls.Momentum(p14, 0)*ls.Metric(0, 1)*ls.Momentum(p14, 1)))
 
-        elec = pc.Particle(model, 11, mom, 1, 0, True)
-        antielec = pc.Particle(model, -11, mom, 2, 1, True)
-        muon = pc.Particle(model, 13, mom, 3, 2, False)
-        antimuon = pc.Particle(model, -13, mom, 4, 3, False)
-        photon = pc.Particle(model, 22, mom, 0, 4, False)
+        # Initialize particles with spin index and momentum index.
+        elec = pc.Particle(model, 11, mom[0], True)
+        antielec = pc.Particle(model, -11, mom[1], True)
+        muon = pc.Particle(model, 13, mom[2], False)
+        antimuon = pc.Particle(model, -13, mom[3], False)
+        photon = pc.Particle(model, 22, mom[4], False)
 
         InP = [elec, antielec]
         OutP = [muon, antimuon]
@@ -58,18 +60,19 @@ def plot_amp(model):
     print(f"It took {end-start}s")
 
     # Plot amplitudes and amplitude error vs cos(theta).
-    fig, axs = plt.subplots(nrows=1, ncols=2, figsize=(10, 5))
+    fig, axs = plt.subplots(nrows=1, ncols=2, figsize=(10,5))
 
     axs[0].plot(costheta_list, comput_sol, color='red')
     axs[0].plot(costheta_list, analytic_sol, color='blue')
     axs[0].set_xlabel("Cos(theta)")
+    axs[0].set_ylabel("|M|^2")
     axs[0].legend(["Computational", "Analytic"])
 
-    axs[1].plot(costheta_list,
-                np.subtract(comput_sol, analytic_sol)/analytic_sol)
+    axs[1].plot(costheta_list, np.subtract(comput_sol, analytic_sol)/analytic_sol)
     axs[1].set_xlabel("Cos(theta)")
+    axs[1].set_ylabel("delta |M|^2 / |M|_ana")
 
-    fig.suptitle("Comparison of amplitudes for phi={}".format(phi))
+    fig.suptitle("e+e- -> mu+mu-\nComparison of amplitudes for phi={:.2f}".format(phi))
     fig.savefig("ee2mumu.pdf")
 
 
@@ -102,11 +105,11 @@ def main():
     u = float((ls.Momentum(p14, 0)*ls.Metric(0, 1)*ls.Momentum(p14, 1)))
 
     # Initialize particles with spin index and momentum index.
-    elec = pc.Particle(model, 11, mom, 1, 0, True)
-    antielec = pc.Particle(model, -11, mom, 2, 1, True)
-    muon = pc.Particle(model, 13, mom, 3, 2, False)
-    antimuon = pc.Particle(model, -13, mom, 4, 3, False)
-    photon = pc.Particle(model, 22, mom, 0, 4, False)
+    elec = pc.Particle(model, 11, mom[0], True)
+    antielec = pc.Particle(model, -11, mom[1], True)
+    muon = pc.Particle(model, 13, mom[2], False)
+    antimuon = pc.Particle(model, -13, mom[3], False)
+    photon = pc.Particle(model, 22, mom[4], False)
 
     InP = [elec, antielec]
     OutP = [muon, antimuon]
@@ -119,7 +122,7 @@ def main():
     ee = model.parameter_map["ee"]
     analytic = 8*ee**4*(t*t+u*u)/s**2
 
-    result = Amp1.amplitude(InP, OutP, IntP)
+    result = Amp1.amplitude(InP, OutP, IntP).real
     print("Computational solution: {}".format(result))
     print("Analytic solution: {}".format(analytic))
     print("Ratio: {}".format(analytic/result))

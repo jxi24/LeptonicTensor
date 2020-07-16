@@ -11,7 +11,7 @@ import time
 def plot_amp(model):
     # Initialize variables.
     costheta_list = np.linspace(-1, 1, 500, endpoint=False)
-    phi = 2*np.pi*np.random.uniform()
+    phi = 0  # 2*np.pi*np.random.uniform()
     comput_sol = []
     analytic_sol = []
     ee = model.parameter_map["ee"]
@@ -19,6 +19,7 @@ def plot_amp(model):
     Amp1 = feyn_rules.FeynRules(model)
     start = time.time()
     for i, costheta in enumerate(costheta_list):
+        pc.Particle.gindex = 0
         sintheta = np.sqrt(1-costheta**2)
         mom = np.array(
             [[10, 0, 0, 10],
@@ -42,11 +43,11 @@ def plot_amp(model):
         u = float((ls.Momentum(p14, 0)*ls.Metric(0, 1)*ls.Momentum(p14, 1)))
 
         # Initialize particles with spin index and momentum index.
-        elec = pc.Particle(model, 11, mom, 1, 0, True)
-        antielec = pc.Particle(model, -11, mom, 2, 1, True)
-        elec2 = pc.Particle(model, 11, mom, 3, 2, False)
-        antielec2 = pc.Particle(model, -11, mom, 4, 3, False)
-        photon = pc.Particle(model, 22, mom, 0, 4, False)
+        elec = pc.Particle(model, 11, mom[0], True)
+        antielec = pc.Particle(model, -11, mom[1], True)
+        elec2 = pc.Particle(model, 11, mom[2], False)
+        antielec2 = pc.Particle(model, -11, mom[3], False)
+        photon = pc.Particle(model, 22, mom[4], False)
 
         InP = [elec, antielec]
         OutP = [elec2, antielec2]
@@ -58,9 +59,7 @@ def plot_amp(model):
 
         comput_sol.append(result)
         analytic_sol.append(analytic)
-        # print("Computational solution: {}".format(result))
-        # print("Analytic solution: {}".format(analytic))
-        # print("Run: {}".format(i))
+
     end = time.time()
     print(f"It took {end-start}s")
 
@@ -70,11 +69,13 @@ def plot_amp(model):
     axs[0, 0].plot(costheta_list, comput_sol, color='red')
     axs[0, 0].plot(costheta_list, analytic_sol, color='blue')
     axs[0, 0].set_xlabel("Cos(theta)")
+    axs[0, 0].set_ylabel("|M|^2")
+    axs[0, 0].semilogy()
     axs[0, 0].legend(["Computational", "Analytic"])
 
-    axs[1, 0].plot(costheta_list,
-                   np.subtract(comput_sol, analytic_sol)/analytic_sol)
-    axs[1, 0].set_xlabel("Cos(theta)")
+    axs[0, 1].plot(costheta_list, np.subtract(comput_sol, analytic_sol)/analytic_sol)
+    axs[0, 1].set_xlabel("Cos(theta)")
+    axs[0, 1].set_ylabel("delta |M|^2 / |M|_ana")
 
     # Cut-off data
     epsilon = 0.5
@@ -82,17 +83,19 @@ def plot_amp(model):
     s = len(analytic_cut)
     costheta_cut = costheta_list[0:s]
     comput_cut = comput_sol[0:s]
-    axs[0, 1].plot(costheta_cut, comput_cut, color='red')
-    axs[0, 1].plot(costheta_cut, analytic_cut, color='blue')
-    axs[0, 1].set_xlabel("Cos(theta)")
-    axs[0, 1].legend(["Computational", "Analytic"])
+    axs[1, 0].plot(costheta_cut, comput_cut, color='red')
+    axs[1, 0].plot(costheta_cut, analytic_cut, color='blue')
+    axs[1, 0].set_xlabel("Cos(theta)")
+    axs[1, 0].set_ylabel("|M|^2")
+    axs[1, 0].semilogy()
+    axs[1, 0].legend(["Computational", "Analytic"])
 
-    axs[1, 1].plot(costheta_cut,
-                   np.subtract(comput_cut, analytic_cut)/analytic_cut)
+    axs[1, 1].plot(costheta_cut, np.subtract(comput_cut, analytic_cut)/analytic_cut)
     axs[1, 1].set_xlabel("Cos(theta)")
+    axs[1, 1].set_ylabel("delta |M|^2 / |M|_ana")
 
-    fig.suptitle("Comparison of amplitudes for "
-                 "phi={:.2f}, epsilon={:.2f}".format(phi, epsilon))
+    fig.suptitle("Bhabha scattering\nComparison of amplitudes for phi={:.2f}, epsilon={:.2f}".format(phi, epsilon),
+                 fontsize='x-large')
     fig.savefig("bhabha_scattering.pdf")
 
 
@@ -103,6 +106,7 @@ def main():
 
     # Initialize momenta.
     costheta = 2*np.random.uniform()-1
+    costheta = 0.999
     sintheta = np.sqrt(1-costheta**2)
     phi = 2*np.pi*np.random.uniform()
     mom = np.array(
@@ -122,11 +126,11 @@ def main():
     p14 = mom[0]-mom[3]
 
     # Initialize particles with spin index and momentum index.
-    elec = pc.Particle(model, 11, mom, 1, 0, True)
-    antielec = pc.Particle(model, -11, mom, 2, 1, True)
-    elec2 = pc.Particle(model, 11, mom, 3, 2, False)
-    antielec2 = pc.Particle(model, -11, mom, 4, 3, False)
-    photon = pc.Particle(model, 22, mom, 0, 4, False)
+    elec = pc.Particle(model, 11, mom[0], True)
+    antielec = pc.Particle(model, -11, mom[1], True)
+    elec2 = pc.Particle(model, 11, mom[2], False)
+    antielec2 = pc.Particle(model, -11, mom[3], False)
+    photon = pc.Particle(model, 22, mom[4], False)
 
     InP = [elec, antielec]
     OutP = [elec2, antielec2]

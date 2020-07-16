@@ -1,6 +1,7 @@
 import lorentz_structures as ls
 import numpy as np
 
+
 class ParticleInfo:
     def __init__(self, ufo_particle, label=None):
         self.name = ufo_particle.name
@@ -35,7 +36,7 @@ class ParticleInfo:
                 return 'G'
         else:
             return ufo_particle.propagator
-        
+
     def get_wavefunction(self, label):
         if self.spin == 0:
             wavefunction_incoming = '1'
@@ -46,46 +47,49 @@ class ParticleInfo:
         if self.spin == 1:
             if self.pid > 0:
                 wavefunction_incoming = 'u(p_[{},{}])'.format(self.name, label)
-                wavefunction_outgoing = 'ubar(p_[{},{}])'.format(self.name, label)
+                wavefunction_outgoing = 'ubar(p_[{},{}])'.format(self.name,
+                                                                 label)
                 wavefunction = [wavefunction_incoming, wavefunction_outgoing]
                 self.wavefunction = wavefunction
                 return wavefunction
             if self.pid < 0:
-                wavefunction_incoming = 'vbar(p_[{},{}])'.format(self.name, label) 
+                wavefunction_incoming = 'vbar(p_[{},{}])'.format(self.name,
+                                                                 label)
                 wavefunction_outgoing = 'v(p_[{},{}])'.format(self.name, label)
                 wavefunction = [wavefunction_incoming, wavefunction_outgoing]
                 self.wavefunction = wavefunction
                 return wavefunction
         if self.spin == 2:
-            wavefunction_incoming = 'epsilon(p_[{},{}])'.format(self.name, label)
-            wavefunction_outgoing = 'epsilon*(p_[{},{}])'.format(self.name, label)
+            wavefunction_incoming = 'epsilon(p_[{},{}])'.format(self.name,
+                                                                label)
+            wavefunction_outgoing = 'epsilon*(p_[{},{}])'.format(self.name,
+                                                                 label)
             wavefunction = [wavefunction_incoming, wavefunction_outgoing]
             self.wavefunction = wavefunction
             return wavefunction
         else:
             pass
 
+
 class Particle:
-    def __init__(self, model, pid: int, mom_array: np.array, index: int, mom_index: int, incoming: bool):
+    gindex = 0
+
+    def __init__(self, model, pid, momentum, incoming=False, index=None):
         self.model = model
         self.pid = pid
-        self.mom_array = mom_array
-        self.index = index
-        self.mom_index = mom_index
+        if index is None:
+            self.index = Particle.gindex
+            Particle.gindex += 1
+        else:
+            self.index = index
         self.incoming = incoming
-        
-        self.momentum = self.mom_array[self.mom_index]
-        self.spin = 0
-        try:
-            self.info = model.particle_map[self.pid]
-        except:
-            self.info = model.particle_map[-self.pid]
+
+        self.momentum = momentum
+        self.info = model.particle_map[abs(self.pid)]
 
     def anti(self):
-        new_mom = -self.mom_array[self.mom_index]
-        new_mom_array = self.mom_array
-        new_mom_array[self.mom_index] = new_mom
-        return Particle(self.model, -self.pid, new_mom_array, self.index, self.mom_index, not self.incoming)
+        return Particle(self.model, -self.pid, -self.momentum,
+                        not self.incoming, self.index)
 
     def get_spinor(self, spin):
         '''
@@ -104,5 +108,6 @@ class Particle:
                 return ls.SpinorV(self.momentum, self.index, spin)
 
     def __str__(self):
-        return 'Particle({}, {}, {})'.format(self.momentum, self.index, self.info)
-    
+        return 'Particle({}, {}, {})'.format(self.momentum,
+                                             self.index,
+                                             self.info)

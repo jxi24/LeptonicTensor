@@ -17,8 +17,20 @@ def test_tensor_addition():
     tensor2 = lt.Tensor(np.transpose(-array),
                         (lt.SpinIndex(1), lt.SpinIndex(0)))
     assert(tensor1 + tensor2 == result)
+    array = np.random.random((4, 4, 4, 4))
+    tensor1 = lt.Tensor(array,
+                        (lt.SpinIndex(0), lt.SpinIndex(1),
+                         lt.SpinIndex(2), lt.SpinIndex(3)))
+    tensor2 = lt.Tensor(-np.transpose(array, (1, 3, 2, 0)),
+                        (lt.SpinIndex(1), lt.SpinIndex(3),
+                         lt.SpinIndex(2), lt.SpinIndex(0)))
+    zeros = np.zeros_like(array)
+    result = lt.Tensor(zeros, (lt.SpinIndex(0), lt.SpinIndex(1),
+                               lt.SpinIndex(2), lt.SpinIndex(3)))
+    assert(tensor1 + tensor2 == result)
 
     # Test tensor + constant and constant + tensor for floats
+    array = np.array([[0, 1, 0, 0], [2, 0, 0, 0], [0, 0, 0, 1], [0, 0, 2, 0]])
     ones = np.ones_like(array)
     twos = 2*np.ones_like(array)
     tensor3 = lt.Tensor(ones, (lt.SpinIndex(0), lt.SpinIndex(1)))

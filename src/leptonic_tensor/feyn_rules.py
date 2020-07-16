@@ -1,6 +1,31 @@
 import vertex_class as vc
 import lorentz_structures as ls
 import ufo_grammer
+import numpy as np
+
+
+class Amplitude:
+    def __init__(self, name, vertices, couplings, propagators, fermions):
+        self.name = name
+        self.vertices = vertices
+        self.couplings = couplings
+        self.propagators = propagators
+        self.parity = (-1)**self._get_inversions(fermions)
+
+    def __call__(self, momentum):
+        propagators = 1
+        for propagator in self.propagators:
+            propagators *= propagator(momentum)
+        return self.vertices*self.couplings*propagators*self.parity
+
+    def _get_inversions(self, fermions):
+        count = 0
+        n = len(fermions)
+        for i in range(n):
+            for j in range(i + 1, n):
+                if fermions[i] > fermions[j]:
+                    count += 1
+        return count
 
 
 class FeynRules:
@@ -10,28 +35,14 @@ class FeynRules:
         outgoing particles with internal particles.
         '''
         self.model = model
-        # self.incoming = incoming_particles
-        self.incoming = []  # [part.anti() for part in incoming_particles]
-        self.outgoing = []  # outgoing_particles
-        self.internal = []  # internal_particles
         # All particles considered outgoing
+        self.incoming = None  # [part.anti() for part in incoming_particles]
+        self.outgoing = None  # outgoing_particles
+        self.internal = None  # internal_particles
 
-        # self.pids = self._get_pids()
-        # self.vertices = self._get_vertices()
-        # self.propagator = self._get_propagator()
-        # self.ufo = ufo_grammer.UFOParser(self.model.model)
         self.first = True
-        self.sfirst = True
-        self.tfirst = True
-        self.ufirst = True
-        self.svert = 0
-        self.scoup = 0
-        self.tvert = 0
-        self.tcoup = 0
-        self.uvert = 0
-        self.ucoup = 0
+
         self.amplitudes = []
-        # self.amplitude = self._get_amplitude()
 
     def _get_pids(self):
         pids = []
@@ -61,87 +72,91 @@ class FeynRules:
         V2 = vc.Vertex(self.model, part_list2, part_idx2)
         return [V1, V2]
 
-    # def _get_propagator(self):
-
     def _s_channel_amplitude(self):
-        if self.sfirst:
-            part_list1 = self.incoming + self.internal
-            part_list2 = self.outgoing + self.internal
+        part_list1 = self.incoming + self.internal
+        part_list2 = self.outgoing + self.internal
 
-            vertices = self._get_vertices(part_list1, part_list2)
-            vert1 = vertices[0].tensor[0]  # Gamma(0,2,1)
-            vert2 = vertices[1].tensor[0]  # Gamma(1,4,3)
-            self.svert = vert1*vert2
+        vertices = self._get_vertices(part_list1, part_list2)
+        # vert1 = vertices[0].tensor[0]  # Gamma(0,2,1)
+        # vert2 = vertices[1].tensor[0]  # Gamma(1,4,3)
+        vert1 = ls.Gamma(4, 0, 1)
+        vert2 = ls.Gamma(5, 3, 2)
+        vert = vert1*vert2*ls.Metric(4, 5)*-1j
 
-            coup1 = vertices[0].coupling[0][0]  # -0.313451j
-            coup2 = vertices[1].coupling[0][0]  # -0.313451j
-            self.scoup = coup1*coup2
+        coup1 = vertices[0].coupling[0][0]  # -0.313451j
+        coup2 = vertices[1].coupling[0][0]  # -0.313451j
+        coup = coup1*coup2
 
-            self.sfirst = False
+        def denominator(momentum):
+            mom = momentum[0] + momentum[1]
+            return mom[0]**2 - np.sum(mom[1:]**2)
 
-        mom = self.internal[0].mom_array[4]
-        propagator = 1j*ls.Metric(0, 1)
-        propagator /= (ls.Momentum(mom, 10)
-                       * ls.Metric(10, 11)
-                       * ls.Momentum(mom, 11))
+        propagators = [lambda momentum: (1  # *ls.Metric(4, 5)
+                                         / denominator(momentum))]
 
-        return self.svert*self.scoup*propagator
+        amp = Amplitude('s', vert, coup, propagators, [0, 1, 3, 2])
+
+        return amp
 
     def _t_channel_amplitude(self):
-        if self.tfirst:
-            part_list1 = [self.incoming[0], self.outgoing[0]] + self.internal
-            part_list2 = [self.incoming[1], self.outgoing[1]] + self.internal
+        part_list1 = [self.incoming[0], self.outgoing[0]] + self.internal
+        part_list2 = [self.incoming[1], self.outgoing[1]] + self.internal
 
-            vertices = self._get_vertices(part_list1, part_list2)
-            vert1 = vertices[0].tensor[0]  # Gamma(0,3,1)
-            # vert2 = vertices[1].tensor[0] # Gamma(1,4,2)
-            vert2 = ls.Gamma(1, 2, 4)
-            self.tvert = vert1*vert2
+        vertices = self._get_vertices(part_list1, part_list2)
+        # vert1 = vertices[0].tensor[0]  # Gamma(0,3,1)
+        # vert2 = vertices[1].tensor[0]  # Gamma(1,4,2)
+        vert1 = ls.Gamma(4, 0, 2)
+        vert2 = ls.Gamma(5, 3, 1)
+        vert = vert1*vert2*ls.Metric(4, 5)*-1j
 
-            coup1 = vertices[0].coupling[0][0]  # -0.313451j
-            coup2 = vertices[1].coupling[0][0]  # -0.313451j
-            self.tcoup = coup1*coup2
+        coup1 = vertices[0].coupling[0][0]  # -0.313451j
+        coup2 = vertices[1].coupling[0][0]  # -0.313451j
+        coup = coup1*coup2
 
-            self.tfirst = False
+        def denominator(momentum):
+            mom = momentum[0] + momentum[2]
+            return mom[0]**2 - np.sum(mom[1:]**2)
 
-        mom = self.internal[0].mom_array[5]
-        propagator = 1j*ls.Metric(0, 1)
-        propagator /= (ls.Momentum(mom, 10)
-                       * ls.Metric(10, 11)
-                       * ls.Momentum(mom, 11))
-        # Propagator(0,1)
+        propagators = [lambda momentum: (1  # *ls.Metric(4, 5)
+                                         / denominator(momentum))]
 
-        return self.tvert*self.tcoup*propagator
+        amp = Amplitude('t', vert, coup, propagators, [0, 2, 3, 1])
+
+        return amp
 
     def _u_channel_amplitude(self):
-        if self.ufirst:
-            part_list1 = [self.incoming[0], self.outgoing[1]] + self.internal
-            part_list2 = [self.incoming[1], self.outgoing[0]] + self.internal
+        part_list1 = [self.incoming[0], self.outgoing[1]] + self.internal
+        part_list2 = [self.incoming[1], self.outgoing[0]] + self.internal
 
-            vertices = self._get_vertices(part_list1, part_list2)
-            vert1 = vertices[0].tensor[0]  # Gamma(0,4,1)
-            vert2 = vertices[1].tensor[0]  # Gamma(1,3,2)
-            self.uvert = vert1*vert2
+        vertices = self._get_vertices(part_list1, part_list2)
+        vert1 = vertices[0].tensor[0]  # Gamma(0,4,1)
+        vert2 = vertices[1].tensor[0]  # Gamma(1,3,2)
+        vert = vert1*vert2*ls.Metric(4, 5)*-1j
 
-            coup1 = vertices[0].coupling[0][0]  # -0.313451j
-            coup2 = vertices[1].coupling[0][0]  # -0.313451j
-            self.ucoup = coup1*coup2
+        coup1 = vertices[0].coupling[0][0]  # -0.313451j
+        coup2 = vertices[1].coupling[0][0]  # -0.313451j
+        coup = coup1*coup2
 
-            self.ufrist = False
+        def denominator(momentum):
+            mom = momentum[0] + momentum[3]
+            return mom[0]**2 - np.sum(mom[1:]**2)
 
-        mom = self.internal[0].mom_array[6]
-        propagator = 1j*ls.Metric(0, 1)
-        propagator /= (ls.Momentum(mom, 10)
-                       * ls.Metric(10, 11)
-                       * ls.Momentum(mom, 11))
-        # Propagator(0,1)
+        propagators = [lambda momentum: (-1j  # *ls.Metric(4, 5)
+                                         / denominator(momentum))]
 
-        return self.uvert*self.ucoup*propagator
+        amp = Amplitude(vert, coup, propagators)
+
+        return amp
 
     def amplitude(self, incoming, outgoing, internal):
+        # All particles considered outgoing
         self.incoming = [part.anti() for part in incoming]
         self.outgoing = outgoing
         self.internal = internal
+
+        momentum = [part.momentum for part in self.incoming]
+        momentum += [part.momentum for part in self.outgoing]
+
         if(self.first):
             self.pids = self._get_pids()
             if((all(pid > 0 for pid in self.pids))
@@ -177,10 +192,6 @@ class FeynRules:
                         scatter2 = True
 
                     if scatter1 and scatter2:
-                        # print(scatter1, scatter2)
-                        # print(particle_pids)
-                        # print(part_list1_pids, part_list2_pids)
-                        # print(spin1, spin2, spin3, spin4)
                         self.scatter = True
                         break
 
@@ -190,8 +201,8 @@ class FeynRules:
                     particle_pids = [part.pdg_code for part in particle_list]
                     particle_pids = sorted(particle_pids)
 
-                    part_list1 = self.incoming + self.internal
-                    part_list2 = self.outgoing + self.internal
+                    part_list1 = self.incoming + [self.internal[0]]
+                    part_list2 = self.outgoing + [self.internal[0]]
                     part_list1_pids = [part.pid for part in part_list1]
                     part_list2_pids = [part.pid for part in part_list2]
                     part_list1_pids = sorted(part_list1_pids)
@@ -205,17 +216,19 @@ class FeynRules:
                         self.annihilation = True
                         break
                 if self.scatter:
-                    self.amplitudes.append(self._t_channel_amplitude)
+                    self.amplitudes.append(self._t_channel_amplitude())
                     if self.outgoing[0].pid == self.outgoing[1].pid:
-                        self.amplitudes.append(self._u_channel_amplitude)
+                        self.amplitudes.append(self._u_channel_amplitude())
                 if self.annihilation:
-                    self.amplitudes.append(self._s_channel_amplitude)
+                    self.amplitudes.append(self._s_channel_amplitude())
+
             self.first = False
 
         total = 0
         mtot = 0
+        propagators = 1
         for amplitude in self.amplitudes:
-            mtot += amplitude()
+            mtot += amplitude(momentum)
 
         for spin1 in range(2):
             spinor1 = self.incoming[0].get_spinor(spin1)
@@ -225,8 +238,12 @@ class FeynRules:
                     spinor3 = self.outgoing[0].get_spinor(spin3)
                     for spin4 in range(2):
                         spinor4 = self.outgoing[1].get_spinor(spin4)
+                        spinors = [spinor1, spinor2, spinor3, spinor4]
                         result = mtot*spinor1*spinor2*spinor3*spinor4
                         total += result*result.conjugate()
+                        # result1 = mtot[0]*spinor1*spinor2*spinor3*spinor4
+                        # result2 = mtot[1]*spinor1*spinor2*spinor3*spinor4
+                        # total += (result1 + result2)*(result1 + result2).conjugate()
 
         if total._scalar:
             return complex(total._array)
