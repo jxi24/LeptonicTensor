@@ -77,10 +77,10 @@ class FeynRules:
         part_list2 = self.outgoing + self.internal
 
         vertices = self._get_vertices(part_list1, part_list2)
-        # vert1 = vertices[0].tensor[0]  # Gamma(0,2,1)
-        # vert2 = vertices[1].tensor[0]  # Gamma(1,4,3)
-        vert1 = ls.Gamma(4, 0, 1)
-        vert2 = ls.Gamma(5, 3, 2)
+        vert1 = vertices[0].tensor[0]  # Gamma(0,2,1)
+        vert2 = vertices[1].tensor[0]  # Gamma(1,4,3)
+        # vert1 = ls.Gamma(4, 0, 1)
+        # vert2 = ls.Gamma(5, 3, 2)
         vert = vert1*vert2*ls.Metric(4, 5)*-1j
 
         coup1 = vertices[0].coupling[0][0]  # -0.313451j
@@ -103,10 +103,10 @@ class FeynRules:
         part_list2 = [self.incoming[1], self.outgoing[1]] + self.internal
 
         vertices = self._get_vertices(part_list1, part_list2)
-        # vert1 = vertices[0].tensor[0]  # Gamma(0,3,1)
-        # vert2 = vertices[1].tensor[0]  # Gamma(1,4,2)
-        vert1 = ls.Gamma(4, 0, 2)
-        vert2 = ls.Gamma(5, 3, 1)
+        vert1 = vertices[0].tensor[0]  # Gamma(0,3,1)
+        vert2 = vertices[1].tensor[0]  # Gamma(1,4,2)
+        # vert1 = ls.Gamma(4, 0, 2)
+        # vert2 = ls.Gamma(5, 1, 3)
         vert = vert1*vert2*ls.Metric(4, 5)*-1j
 
         coup1 = vertices[0].coupling[0][0]  # -0.313451j
@@ -241,9 +241,6 @@ class FeynRules:
                         spinors = [spinor1, spinor2, spinor3, spinor4]
                         result = mtot*spinor1*spinor2*spinor3*spinor4
                         total += result*result.conjugate()
-                        # result1 = mtot[0]*spinor1*spinor2*spinor3*spinor4
-                        # result2 = mtot[1]*spinor1*spinor2*spinor3*spinor4
-                        # total += (result1 + result2)*(result1 + result2).conjugate()
 
         if total._scalar:
             return complex(total._array)

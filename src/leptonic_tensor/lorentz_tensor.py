@@ -40,6 +40,8 @@ class Index:
         #     return f'i{self.index}'
 
     def __int__(self):
+        if isinstance(self.index, np.int64):
+            return self.index.item()
         return self.index
 
 
