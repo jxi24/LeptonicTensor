@@ -117,6 +117,9 @@ def main():
 
     # Compute amplitude.
     Amp1 = feyn_rules.FeynRules(model)
+    Amp1._allowed_vertices(elec, antielec)
+    Amp1._allowed_vertices(elec, muon)
+    Amp1._allowed_vertices(elec, photon)
 
     # Compare with analytic solution.
     ee = model.parameter_map["ee"]
@@ -127,7 +130,7 @@ def main():
     print("Analytic solution: {}".format(analytic))
     print("Ratio: {}".format(analytic/result))
 
-    plot_amp(model)
+    # plot_amp(model)
 
 
 if __name__ == '__main__':

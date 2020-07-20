@@ -1,4 +1,5 @@
 import vertex_class as vc
+import particle_class as pc
 import lorentz_structures as ls
 import ufo_grammer
 import numpy as np
@@ -53,6 +54,35 @@ class FeynRules:
         for part in self.internal:
             pids.append(part.pid)
         return pids
+
+    def _allowed_vertices(self, part1, part2):
+        vert_dict = {}
+        part_map = self.model.particle_map
+        for vertex in self.model.vertices:
+            particle_list = vertex.particles
+            particle_pids = [part.pdg_code for part in particle_list]
+            particle_pids = sorted(particle_pids)
+            if (part1.pid in particle_pids) and (part2.pid in particle_pids):
+                new_pids = []
+                for pid in particle_pids:
+                    if part1.pid != pid and part2.pid != pid:
+                        new_pids.append(pid)
+                particles = [part_map[pid] for pid in new_pids]
+                for part in particles:
+                    # if (part1.incoming and part2.incoming) or (not part1.incoming and not part2.incoming):
+                    #     Part_mom = part1.momentum + part2.momentum
+                    # elif part1.incoming and not part2.incoming:
+                    #     Part_mom = part1.momentum - part2.momentum
+                    # elif part2.incoming and not part2.incoming:
+                    #     Part_mom = part2.momentum - part1.momentum 
+                    # Part = pc.Particle(self.model, part.pid, Part_mom)
+                    # P = [part1, part2, Part]
+                    # indices = [part.index for part in P]
+                    # print(indices)
+                    # vert_dict[part.name] = vc.Vertex(self.model, P, indices)
+                    vert_dict[part.name] = part
+        print(vert_dict)
+        return vert_dict
 
     def _get_vertices(self, part_list1: list, part_list2: list):
         '''
