@@ -78,12 +78,7 @@ class FeynRules:
                     Part = pc.Particle(self.model, part.pid, Part_mom)
                     P = [part1, part2, Part]
                     indices = [part.index for part in P]
-                    print(indices)
-                    print(Part)
                     vert_dict[part.name] = vc.Vertex(self.model, P, indices)
-                    print(vc.Vertex(self.model, P, indices))
-                    # vert_dict[part.name] = part
-        print(vert_dict)
         return vert_dict
 
     def _get_vertices(self, part_list1: list, part_list2: list):
