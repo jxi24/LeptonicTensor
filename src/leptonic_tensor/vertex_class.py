@@ -5,7 +5,8 @@ import numpy as np
 class Vertex:
     def __init__(self, model, particles, indices):
         self.model = model
-        self.spins = [part.info.spin for part in particles]
+        spins = [part.info.spin for part in particles]
+        self.spins = sorted(spins)
         self.pids, indices = self._get_pids(particles, indices)
         self.ufo_vertex = self.model.vertex_map[tuple(self.pids)]
         self.name = [ltz.name for ltz in self.ufo_vertex.lorentz]

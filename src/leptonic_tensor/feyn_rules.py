@@ -69,18 +69,20 @@ class FeynRules:
                         new_pids.append(pid)
                 particles = [part_map[pid] for pid in new_pids]
                 for part in particles:
-                    # if (part1.incoming and part2.incoming) or (not part1.incoming and not part2.incoming):
-                    #     Part_mom = part1.momentum + part2.momentum
-                    # elif part1.incoming and not part2.incoming:
-                    #     Part_mom = part1.momentum - part2.momentum
-                    # elif part2.incoming and not part2.incoming:
-                    #     Part_mom = part2.momentum - part1.momentum 
-                    # Part = pc.Particle(self.model, part.pid, Part_mom)
-                    # P = [part1, part2, Part]
-                    # indices = [part.index for part in P]
-                    # print(indices)
-                    # vert_dict[part.name] = vc.Vertex(self.model, P, indices)
-                    vert_dict[part.name] = part
+                    if (part1.incoming and part2.incoming) or (not part1.incoming and not part2.incoming):
+                        Part_mom = part1.momentum + part2.momentum
+                    elif part1.incoming and not part2.incoming:
+                        Part_mom = part1.momentum - part2.momentum
+                    elif part2.incoming and not part2.incoming:
+                        Part_mom = part2.momentum - part1.momentum 
+                    Part = pc.Particle(self.model, part.pid, Part_mom)
+                    P = [part1, part2, Part]
+                    indices = [part.index for part in P]
+                    print(indices)
+                    print(Part)
+                    vert_dict[part.name] = vc.Vertex(self.model, P, indices)
+                    print(vc.Vertex(self.model, P, indices))
+                    # vert_dict[part.name] = part
         print(vert_dict)
         return vert_dict
 

@@ -110,6 +110,7 @@ def main():
     muon = pc.Particle(model, 13, mom[2], False)
     antimuon = pc.Particle(model, -13, mom[3], False)
     photon = pc.Particle(model, 22, mom[4], False)
+    Z = pc.Particle(model, 23, mom[4], False)
 
     InP = [elec, antielec]
     OutP = [muon, antimuon]
@@ -117,8 +118,8 @@ def main():
 
     # Compute amplitude.
     Amp1 = feyn_rules.FeynRules(model)
-    Amp1._allowed_vertices(elec, antielec)
-    Amp1._allowed_vertices(elec, muon)
+    # Amp1._allowed_vertices(elec, antielec)
+    # Amp1._allowed_vertices(elec, muon)
     Amp1._allowed_vertices(elec, photon)
 
     # Compare with analytic solution.
