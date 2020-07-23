@@ -164,6 +164,9 @@ class Tensor:
     def conjugate(self):
         return Tensor(self._array.conjugate(), self._indices)
 
+    def copy(self):
+        return Tensor(self._array, self._indices)
+
     def real(self):
         if self._scalar:
             return self._array.real
