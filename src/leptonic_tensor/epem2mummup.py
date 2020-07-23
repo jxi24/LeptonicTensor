@@ -6,6 +6,8 @@ import numpy as np
 import lorentz_structures as ls
 import matplotlib.pyplot as plt
 import time
+from matplotlib import rc
+rc('text', usetex=True)
 
 
 def plot_amp(model):
@@ -60,20 +62,21 @@ def plot_amp(model):
     print(f"It took {end-start}s")
 
     # Plot amplitudes and amplitude error vs cos(theta).
-    fig, axs = plt.subplots(nrows=1, ncols=2, figsize=(10,5))
+    fig, axs = plt.subplots(nrows=1, ncols=2, figsize=(10.5,5),dpi=200,constrained_layout=True)
 
-    axs[0].plot(costheta_list, comput_sol, color='red')
-    axs[0].plot(costheta_list, analytic_sol, color='blue')
-    axs[0].set_xlabel("Cos(theta)")
-    axs[0].set_ylabel("|M|^2")
+    axs[0].plot(costheta_list, comput_sol)
+    axs[0].plot(costheta_list, analytic_sol)
+    axs[0].set_xlabel(r"$\displaystyle\cos(\theta)$")
+    axs[0].set_ylabel(r"$\displaystyle|\mathcal{M}|^2$")
     axs[0].legend(["Computational", "Analytic"])
 
     axs[1].plot(costheta_list, np.subtract(comput_sol, analytic_sol)/analytic_sol)
-    axs[1].set_xlabel("Cos(theta)")
-    axs[1].set_ylabel("delta |M|^2 / |M|_ana")
+    axs[1].set_xlabel(r"$\displaystyle\cos(\theta)$")
+    axs[1].set_ylabel(r"$\displaystyle \frac{\delta |\mathcal{M}|^2}{|\mathcal{M}|_\textsubscript{ana}}$")
 
-    fig.suptitle("e+e- -> mu+mu-\nComparison of amplitudes for phi={:.2f}".format(phi))
-    fig.savefig("ee2mumu.pdf")
+    fig.suptitle(r'''$\displaystyle e^+e^- \rightarrow \mu^+\mu^-$
+                 Comparison of amplitudes for $\displaystyle\phi={:.2f}$'''.format(phi))
+    fig.savefig("ee2mumu_latex.jpeg")
 
 
 def main():
@@ -120,7 +123,7 @@ def main():
     Amp1 = feyn_rules.FeynRules(model)
     # Amp1._allowed_vertices(elec, antielec)
     # Amp1._allowed_vertices(elec, muon)
-    Amp1._allowed_vertices(elec, photon)
+    # Amp1._allowed_vertices(elec, photon)
 
     # Compare with analytic solution.
     ee = model.parameter_map["ee"]
@@ -131,7 +134,7 @@ def main():
     print("Analytic solution: {}".format(analytic))
     print("Ratio: {}".format(analytic/result))
 
-    # plot_amp(model)
+    plot_amp(model)
 
 
 if __name__ == '__main__':
