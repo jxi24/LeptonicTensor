@@ -1,4 +1,5 @@
 import numpy as np
+import collections
 
 
 class Rambo:
@@ -155,11 +156,22 @@ class BG_Amplitude:
                     vertices[i, i+d] = self._get_vertex(i, i+d)
 
     def _get_vertex(self, ei, ej):
+        vertices = []
         for i in range(ei, ej):
             pid1 = self.pids[ei, i]
             pid2 = self.pids[i+1, ej]
-            print('ei, i: ', self.pids[ei, i])
-            print('i+1, ej: ', self.pids[i+1, ej])
+            for key in self.model.vertex_map.keys():
+                if pid1 in key:
+                    lstkey = list(key)
+                    lstkey.remove(pid1)
+                    if pid2 in lstkey:
+                        if len(lstkey) == 2:
+                            lstkey.remove(pid2)
+                            self.pids[ei, ej] = lstkey[0]
+                            if self.model.vertex_map[key] not in vertices:
+                                vertices.append(self.model.vertex_map[key])
+                                print(key, self.model.vertex_map[key])
+        return vertices
 
     @property
     def n_external(self):
@@ -248,7 +260,11 @@ if __name__ == '__main__':
     mom[:, 0] = -mom[:, 0]
     mom[:, 1] = -mom[:, 1]
 
-    external = [pc.Particle(model, 21)]*(2+nout)
+    # external = [pc.Particle(model, 21)]*(2+nout)
+    external = [pc.Particle(model, 11),
+                pc.Particle(model, -11),
+                pc.Particle(model, 13),
+                pc.Particle(model, -13)]
 
     amp = BG_Amplitude(model, external, nevents)
     spins = np.array([[1, 1, -1, -1]])
