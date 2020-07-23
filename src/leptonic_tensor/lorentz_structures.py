@@ -227,13 +227,16 @@ class WeylSpinor:
         self.mu = -self.mu
         return self
 
+    def __str__(self):
+        return f'<{self.mu[0], self.mu[1]}>'
+
 
 class Spinor(lt.Tensor):
     def __init__(self, p, i, mr, hel=0, spin=1, bar=1):
         if not isinstance(i, lt.Index):
             i = lt.SpinIndex(i)
         self.bar = bar
-        self.u = np.zeros_like(p, dtype=np.complex)
+        self.u = np.zeros(4, dtype=np.complex)
         if np.all(p[1:] == 0):
             rte = np.sqrt(p[0]+0j)
             if (mr > 0) ^ (hel < 0):  # u+(p, m) / v-(p, m)
