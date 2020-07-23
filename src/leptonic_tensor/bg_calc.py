@@ -144,6 +144,23 @@ class BG_Amplitude:
         for d, part in enumerate(self.external):
             self.pids[d, d] = part.pid
 
+        self.vertices = self._get_vertices()
+
+    def _get_vertices(self):
+        vertices = np.empty((self.n_external, self.n_external),
+                            dtype=list)
+        for d in range(1, self.n_external):
+            for i in range(1, self.n_external):
+                if i + d < self.n_external:
+                    vertices[i, i+d] = self._get_vertex(i, i+d)
+
+    def _get_vertex(self, ei, ej):
+        for i in range(ei, ej):
+            pid1 = self.pids[ei, i]
+            pid2 = self.pids[i+1, ej]
+            print('ei, i: ', self.pids[ei, i])
+            print('i+1, ej: ', self.pids[i+1, ej])
+
     @property
     def n_external(self):
         return len(self.external)
@@ -155,10 +172,12 @@ class BG_Amplitude:
             self.momentums[:, d, d] = momentum[:, d]
         for d in range(1, self.n_external):
             for i in range(1, self.n_external):
-                if(i + d < self.n_external):
+                if i + d < self.n_external:
                     self.currents[:, i, i+d] = self.JL(i, i+d)
         # return Dot(self.currents[:, 0, 0], self.currents[:, 1, -1])
-        return np.outer(self.currents[:, 1, -1], self.currents[:, 1, -1])
+        # Convert current to Tensor
+        return np.outer(self.currents[:, 1, -1],
+                        self.currents[:, 1, -1].conjugate()).real
 
     def JL(self, i, j):
         vl = self.VL(i, j)
