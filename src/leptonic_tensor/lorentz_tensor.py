@@ -228,7 +228,8 @@ class Tensor:
     def sum(self, rhs):
         # Perform sum with transposes
         arg_indices = np.argsort(np.array(self._indices))
-        rhs_indices = np.argsort(np.array([int(x) for x in rhs._indices]))
+        # rhs_indices = np.argsort(np.array([int(x) for x in rhs._indices]))
+        rhs_indices = np.argsort(np.array([x for x in rhs._indices]))
         rhs_array = np.transpose(rhs._array, rhs_indices)
         rhs_array = np.transpose(rhs_array, np.argsort(arg_indices))
 

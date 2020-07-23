@@ -63,20 +63,22 @@ def plot_amp(model):
     print(f"It took {end-start}s")
 
     # Plot amplitudes and amplitude error vs cos(theta).
-    fig, axs = plt.subplots(nrows=1, ncols=2, figsize=(10,5))
+    fig, axs = plt.subplots(nrows=1, ncols=2, figsize=(10.5,5),dpi=200,constrained_layout=True)
 
-    axs[0].plot(costheta_list, comput_sol, color='red')
-    axs[0].plot(costheta_list, analytic_sol, color='blue')
-    axs[0].set_xlabel("Cos(theta)")
-    axs[0].set_ylabel("|M|^2")
+    axs[0].plot(costheta_list, comput_sol)
+    axs[0].plot(costheta_list, analytic_sol)
+    axs[0].set_xlabel(r"$\displaystyle\cos(\theta)$")
+    axs[0].set_ylabel(r"$\displaystyle|\mathcal{M}|^2$")
+    axs[0].semilogy()
     axs[0].legend(["Computational", "Analytic"])
 
     axs[1].plot(costheta_list, np.subtract(comput_sol, analytic_sol)/analytic_sol)
-    axs[1].set_xlabel("Cos(theta)")
-    axs[1].set_ylabel("delta |M|^2 / |M|_ana")
+    axs[1].set_xlabel(r"$\displaystyle\cos(\theta)$")
+    axs[1].set_ylabel(r"$\displaystyle \frac{\delta |\mathcal{M}|^2}{|\mathcal{M}|_\textsubscript{ana}}$")
 
-    fig.suptitle("e-mu- scattering\nComparison of amplitudes for phi={:.2f}".format(phi))
-    fig.savefig("emu_scattering.pdf")
+    fig.suptitle(r'''$\displaystyle e^-\mu^- \rightarrow e^-\mu^-$
+                 Comparison of amplitudes for $\displaystyle\phi={:.2f}$'''.format(phi))
+    fig.savefig("emu_scattering_latex.jpeg")
 
 
 def main():
