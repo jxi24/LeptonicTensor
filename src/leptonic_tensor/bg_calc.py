@@ -1,5 +1,6 @@
 import numpy as np
 import collections
+import graph as G
 
 
 class Rambo:
@@ -139,39 +140,62 @@ class BG_Amplitude:
         self.external = external
         self.currents = np.zeros((batch, self.n_external, self.n_external, 4),
                                  dtype=np.complex)
+        print(self.currents)
         self.momentums = np.zeros((batch, self.n_external, self.n_external, 4),
                                   dtype=np.complex)
         self.pids = np.zeros((self.n_external, self.n_external), dtype=np.int)
+        # self.pids = np.zeros((self.n_external, self.n_external), dtype=list)
         for d, part in enumerate(self.external):
             self.pids[d, d] = part.pid
+        print("PID Matrix:\n{}".format(self.pids))
 
         self.vertices = self._get_vertices()
 
     def _get_vertices(self):
+        graph = G.Graph()
+        j = 0
+        # Initialize 4x4 matrix 'vertices' with objects of type list.
         vertices = np.empty((self.n_external, self.n_external),
                             dtype=list)
         for d in range(1, self.n_external):
             for i in range(1, self.n_external):
                 if i + d < self.n_external:
-                    vertices[i, i+d] = self._get_vertex(i, i+d)
+                    print("i = {}, d = {}, i+d = {}".format(i,d,i+d))
+                    vertices[i, i+d] = self._get_vertex(i, i+d, graph, j)
+                    j += 1
+                    print("Vertices matrix:\n{}\nPID matrix: {}".format(vertices, self.pids))
 
-    def _get_vertex(self, ei, ej):
+    def _get_vertex(self, ei, ej, graph, j):
         vertices = []
         for i in range(ei, ej):
             pid1 = self.pids[ei, i]
             pid2 = self.pids[i+1, ej]
+            node = G.Node(j, (pid1,pid2))
+            print("PID 1: {}, PID 2: {}".format(pid1, pid2))
             for key in self.model.vertex_map.keys():
                 if pid1 in key:
                     lstkey = list(key)
                     lstkey.remove(pid1)
+                    print("List of key without PID 1: {}".format(lstkey))
                     if pid2 in lstkey:
                         if len(lstkey) == 2:
                             lstkey.remove(pid2)
+                            # self.pids[ei, ej].append(lstkey[0])
+                            graph.add_node(node)
+                            j += 1
+                            new_node = G.Node(j, (lstkey[0]))
+                            edge = G.Edge([node, new_node], self.model.vertex_map[key])
+                            graph.add_edge(edge)
                             self.pids[ei, ej] = lstkey[0]
+                            print(self.pids)
+                            print(graph)
                             if self.model.vertex_map[key] not in vertices:
                                 vertices.append(self.model.vertex_map[key])
                                 print(key, self.model.vertex_map[key])
-        return vertices
+        if vertices == []:
+            return None
+        else:
+            return vertices
 
     @property
     def n_external(self):
@@ -267,5 +291,5 @@ if __name__ == '__main__':
                 pc.Particle(model, -13)]
 
     amp = BG_Amplitude(model, external, nevents)
-    spins = np.array([[1, 1, -1, -1]])
-    print(spins, amp(mom, spins))
+    #spins = np.array([[1, 1, -1, -1]])
+    #print(spins, amp(mom, spins))

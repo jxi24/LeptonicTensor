@@ -258,13 +258,17 @@ class FeynRules:
             mtot += amplitude(momentum)
 
         for spin1 in range(2):
-            spinor1 = self.incoming[0].get_spinor(spin1)
+            mom1 = self.incoming[0].momentum
+            spinor1 = self.incoming[0].get_spinor(mom1, spin1)
             for spin2 in range(2):
-                spinor2 = self.incoming[1].get_spinor(spin2)
+                mom2 = self.incoming[1].momentum
+                spinor2 = self.incoming[1].get_spinor(mom2, spin2)
                 for spin3 in range(2):
-                    spinor3 = self.outgoing[0].get_spinor(spin3)
+                    mom3 = self.outgoing[0].momentum
+                    spinor3 = self.outgoing[0].get_spinor(mom3, spin3)
                     for spin4 in range(2):
-                        spinor4 = self.outgoing[1].get_spinor(spin4)
+                        mom4 = self.outgoing[1].momentum
+                        spinor4 = self.outgoing[1].get_spinor(mom4, spin4)
                         spinors = [spinor1, spinor2, spinor3, spinor4]
                         result = mtot*spinor1*spinor2*spinor3*spinor4
                         total += result*result.conjugate()

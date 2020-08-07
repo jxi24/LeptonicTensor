@@ -27,7 +27,7 @@ class Graph:
         for node in self.graph:
             for neighbor in self.graph[node]:
                 if (neighbor, node) not in edges:
-                    edges.append((node, neighbor))
+                    edges.append((node[0], neighbor[0]))
         return edges
 
     @property
@@ -65,19 +65,22 @@ class Graph:
 
     def add_node(self, node):
         if node not in self.graph:
-            self.graph[node] = []
+            key = [node.ID, node.pids]
+            print(tuple(key))
+            self.graph[tuple(key)] = []
 
     def add_edge(self, edge):
-        edge = set(edge)
-        (node1, node2) = tuple(edge)
-        if node1 in self.graph:
-            self.graph[node1].append(node2)
+        nodes = set(edge.nodes)
+        vertex = edge.vertex
+        (node1, node2) = tuple(nodes)
+        if (node1.ID,node1.pids) in self.graph:
+            self.graph[(node1.ID,node1.pids)].append((node2.ID,node2.pids))
         else:
-            self.graph[node1] = [node2]
-        if node2 in self.graph:
-            self.graph[node2].append(node1)
+            self.graph[(node1.ID,node1.pids)] = [(node2.ID,node2.pids)]
+        if (node2.ID,node2.pids) in self.graph:
+            self.graph[(node2.ID,node2.pids)].append((node1.ID,node1.pids))
         else:
-            self.graph[node2] = [node1]
+            self.graph[(node2.ID,node2.pids)] = [(node1.ID,node1.pids)]
 
     def is_connected(self, nodes_encountered=None, start_node=None):
         if nodes_encountered is None:
@@ -110,6 +113,17 @@ class Graph:
 #            doc.append(pylatex.NoEscape(f'a{edge[0]} -- a{edge[1]},\n'))
 #        doc.append(pylatex.NoEscape('};\n'))
 
+class Node:
+    def __init__(self, ID, pids=None):
+        self.ID = ID
+        if pids is None:
+            pids = tuple()
+        self.pids = pids
+
+class Edge:
+    def __init__(self, nodes, ufo_vertex=None):
+        self.nodes = nodes
+        self.vertex = ufo_vertex
 
 def PruferToTree(a):
     n = len(a)

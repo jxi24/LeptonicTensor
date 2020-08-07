@@ -76,7 +76,7 @@ def plot_amp(model):
 
     fig.suptitle(r'''$\displaystyle e^+e^- \rightarrow \mu^+\mu^-$
                  Comparison of amplitudes for $\displaystyle\phi={:.2f}$'''.format(phi))
-    fig.savefig("ee2mumu_latex.jpeg")
+    fig.savefig("ee2mumu.jpeg")
 
 
 def main():
