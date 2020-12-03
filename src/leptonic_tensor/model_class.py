@@ -57,7 +57,7 @@ class Model:
         return prop_map
 
     def _lorentz_map(self):
-        # Spin here = 2*S
+        # Spin here = 2*S. Update on Dec 3, 2020: spin is now back to UFO convention 2S+1.
         lorentz_map = {}
         for lorentz in self.lorentzs:
             try:

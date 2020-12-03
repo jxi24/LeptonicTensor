@@ -1,5 +1,11 @@
 import numpy as np
 import collections
+import models
+import model_class as mc
+import lorentz_class as lc
+
+all_models = models.discover_models()
+model = mc.Model('Models.SM_NLO', all_models)
 
 VERTICES = [[11, -11, 22], [13, -13, 22], [11, -12, 24], [-11, 12, -24],
             [11, -11, 23], [13, -13, 23], [12, -12, 23], [24, -24, 22],
@@ -21,10 +27,11 @@ def binary_conj(x, size):
 class Particle:
     max_id = 0
 
-    def __init__(self, i, pid, direction):
+    def __init__(self, i, pid, direction, spin):
         self.id = i
         self.pid = pid
         self.direction = direction
+        self.spin = spin
 
     def __str__(self):
         sid = self.get_id()
@@ -34,7 +41,7 @@ class Particle:
         pid = self.pid
         if self.pid not in (22, 23):
             pid = -self.pid
-        return Particle(self.id, pid, -self.direction)
+        return Particle(self.id, pid, -self.direction, self.spin)
 
     def __repr__(self):
         return str(self)
@@ -61,9 +68,29 @@ class Particle:
 class Vertex:
     def __init__(self, particles):
         self.particles = particles
+        pids = [particle.pid for particle in particles]
+        spins = [particle.spin for particle in particles]
+        indices = [particle.id for particle in particles]
+        self.pids = np.sort(pids)
+        self.spins = np.sort(spins)
+        self.ufo_vertex = model.vertex_map[tuple(self.pids)]
+        
+        self.name = [ltz.name for ltz in self.ufo_vertex.lorentz]
+        try:
+            self.lorentz = [lc.Lorentz(model, self.spins, nme, indices) for nme in self.name]
+            self.structure = [ltz.structure for ltz in self.lorentz]
+            self.indices = [ltz.indices for ltz in self.lorentz]
+            self.tensor = [ltz.tensor for ltz in self.lorentz]
+        except:
+            pass
+        # print(self.structure)
 
     def __str__(self):
-        return "V("+', '.join([str(v.get_id()) for v in self.particles])+")"
+        if hasattr(self, 'indices'):
+            return "V("+', '.join([str(v.get_id()) for v in self.particles])+"):{}".format(self.indices)
+            # return "V("+', '.join([str(v.get_id()) for v in self.particles])+")"
+        else:
+            return "V("+', '.join([str(v.get_id()) for v in self.particles])+"):{}".format(self.ufo_vertex)
 
     def __repr__(self):
         return str(self)
@@ -173,10 +200,14 @@ def AddVertex(diagram):
                         continue
                     pid = pids[0]
                     new_id = particles[i].id+particles[j].id
-                    new_particles[i] = Particle(new_id, pid, -1)
+                    new_part = model.particle_map[pid]
+                    new_particles[i] = Particle(new_id, pid, -1, new_part.spin)
+                    #print(new_particles[i], new_part.spin)
                     new_particles.remove(new_particles[j])
                     new_diagram = diagram.copy()
                     new_vertex = [particles[i], particles[j], new_particles[i]]
+                    #print(new_vertex)
+                    #print([part.spin for part in new_vertex])
                     new_diagram.add_vertex(new_vertex)
                     new_diagram.add_propagator(new_particles[i])
                     new_particles[i] = new_particles[i].conjugate()
@@ -187,12 +218,18 @@ def AddVertex(diagram):
 
 
 def main():
-    particles = [Particle(1, -11, 1), Particle(2, 11, 1),
-                 Particle(4, 22, 1), Particle(8, 23, 1),
-                 Particle(16, 12, 1), Particle(32, -12, 1)]
+    # Spin convention in UFO is 2s+1, but we're using 2s. 12/3/2020 back to 2S+1.
+    # particles = [Particle(1, -11, 1, 2), Particle(2, 11, 1, 2),
+    #               Particle(4, 22, 1, 3), Particle(8, 23, 1, 3),
+    #               Particle(16, 12, 1, 2), Particle(32, -12, 1, 2)]
+    
     # particles = [Particle(1, -11, 1), Particle(2, 11, 1),
     #              Particle(4, 22, 1), Particle(8, 22, 1),
     #              Particle(16, 23, 1)]
+    
+    particles = [Particle(1, -11, 1, 2), Particle(2, 11, 1, 2),
+                  Particle(4, -13, 1, 2), Particle(8, 13, 1, 2)]
+    
     Particle.max_id = 1 << (len(particles)-1)
     for i in range(Particle.max_id << 1):
         PARTMAP[i] = binary_conj(i, len(particles))
