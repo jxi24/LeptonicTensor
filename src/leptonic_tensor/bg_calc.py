@@ -140,37 +140,29 @@ class BG_Amplitude:
         self.external = external
         self.currents = np.zeros((batch, self.n_external, self.n_external, 4),
                                  dtype=np.complex)
-        print(self.currents)
         self.momentums = np.zeros((batch, self.n_external, self.n_external, 4),
                                   dtype=np.complex)
         self.pids = np.zeros((self.n_external, self.n_external), dtype=np.int)
         # self.pids = np.zeros((self.n_external, self.n_external), dtype=list)
         for d, part in enumerate(self.external):
             self.pids[d, d] = part.pid
-        print("PID Matrix:\n{}".format(self.pids))
 
         self.vertices = self._get_vertices()
 
     def _get_vertices(self):
         graph = G.Graph()
-        j = 0
-        # Initialize 4x4 matrix 'vertices' with objects of type list.
-        vertices = np.empty((self.n_external, self.n_external),
-                            dtype=list)
         for d in range(1, self.n_external):
             for i in range(1, self.n_external):
                 if i + d < self.n_external:
-                    print("i = {}, d = {}, i+d = {}".format(i,d,i+d))
-                    vertices[i, i+d] = self._get_vertex(i, i+d, graph, j)
-                    j += 1
-                    print("Vertices matrix:\n{}\nPID matrix: {}".format(vertices, self.pids))
+                    self._get_vertex(i, i+d, graph)
 
-    def _get_vertex(self, ei, ej, graph, j):
+    def _get_vertex(self, ei, ej, graph):
         vertices = []
         for i in range(ei, ej):
+            print(f'ei = {ei}, ej = {ej}, i = {i}')
             pid1 = self.pids[ei, i]
             pid2 = self.pids[i+1, ej]
-            node = G.Node(j, (pid1,pid2))
+            node = G.Node([pid1, pid2])
             print("PID 1: {}, PID 2: {}".format(pid1, pid2))
             for key in self.model.vertex_map.keys():
                 if pid1 in key:
@@ -182,20 +174,12 @@ class BG_Amplitude:
                             lstkey.remove(pid2)
                             # self.pids[ei, ej].append(lstkey[0])
                             graph.add_node(node)
-                            j += 1
-                            new_node = G.Node(j, (lstkey[0]))
-                            edge = G.Edge([node, new_node], self.model.vertex_map[key])
-                            graph.add_edge(edge)
+                            new_node = G.Node([lstkey[0]])
+                            weight = self.model.vertex_map[key]
+                            graph.add_edge(node, new_node, weight)
                             self.pids[ei, ej] = lstkey[0]
-                            print(self.pids)
                             print(graph)
-                            if self.model.vertex_map[key] not in vertices:
-                                vertices.append(self.model.vertex_map[key])
-                                print(key, self.model.vertex_map[key])
-        if vertices == []:
-            return None
-        else:
-            return vertices
+            print(self.pids)
 
     @property
     def n_external(self):
@@ -269,8 +253,8 @@ if __name__ == '__main__':
     all_models = models.discover_models()
     model = mc.Model('Models.SM_NLO', all_models)
 
-    nevents = 1
-    nout = 2
+    nevents = 100
+    nout = 3
     rambo = Rambo(2, nout)
     rans = np.random.random((nevents, 4*nout))
     mom = np.zeros((nevents, 2+nout, 4))
@@ -285,10 +269,11 @@ if __name__ == '__main__':
     mom[:, 1] = -mom[:, 1]
 
     # external = [pc.Particle(model, 21)]*(2+nout)
-    external = [pc.Particle(model, 11),
-                pc.Particle(model, -11),
+    external = [pc.Particle(model, 13),
+                pc.Particle(model, -13),
                 pc.Particle(model, 13),
-                pc.Particle(model, -13)]
+                pc.Particle(model, -13),
+                pc.Particle(model, 23)]
 
     amp = BG_Amplitude(model, external, nevents)
     #spins = np.array([[1, 1, -1, -1]])

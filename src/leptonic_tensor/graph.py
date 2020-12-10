@@ -3,11 +3,38 @@ import numpy as np
 import itertools
 
 
+class Node:
+    idx = 0
+
+    def __init__(self, pids=None):
+        self.id = Node.idx
+        Node.idx += 1
+        self.adjacent = {}
+        if pids is None:
+            pids = []
+        self.pids = pids
+
+    def __iter__(self):
+        return iter(self.adjacent)
+
+    def add_pid(self, pid):
+        self.pids.append(pid)
+
+    def add_connection(self, neighbor, weight):
+        self.adjacent[neighbor] = weight
+
+    def get_vertex(self, neighbor):
+        return self.adjacent[neighbor]
+
+
 class Graph:
     def __init__(self, graph=None):
         if graph is None:
             graph = {}
         self.graph = graph
+
+    def __iter__(self):
+        return iter(self.graph.values())
 
     @property
     def nodes(self):
@@ -26,8 +53,9 @@ class Graph:
         edges = []
         for node in self.graph:
             for neighbor in self.graph[node]:
-                if (neighbor, node) not in edges:
-                    edges.append((node[0], neighbor[0]))
+                weight = self.graph[neighbor.id].get_vertex(self.graph[node])
+                if (neighbor.id, node, weight) not in edges:
+                    edges.append((node, neighbor.id, weight))
         return edges
 
     @property
@@ -65,22 +93,16 @@ class Graph:
 
     def add_node(self, node):
         if node not in self.graph:
-            key = [node.ID, node.pids]
-            print(tuple(key))
-            self.graph[tuple(key)] = []
+            self.graph[node.id] = node
 
-    def add_edge(self, edge):
-        nodes = set(edge.nodes)
-        vertex = edge.vertex
-        (node1, node2) = tuple(nodes)
-        if (node1.ID,node1.pids) in self.graph:
-            self.graph[(node1.ID,node1.pids)].append((node2.ID,node2.pids))
-        else:
-            self.graph[(node1.ID,node1.pids)] = [(node2.ID,node2.pids)]
-        if (node2.ID,node2.pids) in self.graph:
-            self.graph[(node2.ID,node2.pids)].append((node1.ID,node1.pids))
-        else:
-            self.graph[(node2.ID,node2.pids)] = [(node1.ID,node1.pids)]
+    def add_edge(self, start, end, weight):
+        if start not in self.graph:
+            self.add_node(start)
+        if end not in self.graph:
+            self.add_node(end)
+
+        self.graph[start.id].add_connection(self.graph[end.id], weight)
+        self.graph[end.id].add_connection(self.graph[start.id], weight)
 
     def is_connected(self, nodes_encountered=None, start_node=None):
         if nodes_encountered is None:
@@ -113,17 +135,6 @@ class Graph:
 #            doc.append(pylatex.NoEscape(f'a{edge[0]} -- a{edge[1]},\n'))
 #        doc.append(pylatex.NoEscape('};\n'))
 
-class Node:
-    def __init__(self, ID, pids=None):
-        self.ID = ID
-        if pids is None:
-            pids = tuple()
-        self.pids = pids
-
-class Edge:
-    def __init__(self, nodes, ufo_vertex=None):
-        self.nodes = nodes
-        self.vertex = ufo_vertex
 
 def PruferToTree(a):
     n = len(a)
