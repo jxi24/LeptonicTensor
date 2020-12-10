@@ -1,6 +1,12 @@
 import numpy as np
 import yaml
 import argparse
+import models
+import model_class as mc
+import lorentz_class as lc
+
+all_models = models.discover_models()
+model = None
 
 VERTICES = [[11, -11, 22], [13, -13, 22], [11, -12, 24], [-11, 12, -24],
             [11, -11, 23], [13, -13, 23], [12, -12, 23], [24, -24, 22],
@@ -22,9 +28,10 @@ def binary_conj(x, size):
 class Particle:
     max_id = 0
 
-    def __init__(self, i, pid):
+    def __init__(self, i, pid, spin):
         self.id = i
         self.pid = pid
+        self.spin = spin
 
     def __str__(self):
         sid = self.get_id()
@@ -34,7 +41,7 @@ class Particle:
         pid = self.pid
         if self.pid not in (22, 23):
             pid = -self.pid
-        return Particle(self.id, pid)
+        return Particle(self.id, pid, self.spin)
 
     def __repr__(self):
         return str(self)
@@ -61,9 +68,29 @@ class Particle:
 class Vertex:
     def __init__(self, particles):
         self.particles = particles
+        pids = [particle.pid for particle in particles]
+        spins = [particle.spin for particle in particles]
+        indices = [particle.id for particle in particles]
+        self.pids = np.sort(pids)
+        self.spins = np.sort(spins)
+        self.ufo_vertex = model.vertex_map[tuple(self.pids)]
+
+        self.name = [ltz.name for ltz in self.ufo_vertex.lorentz]
+        try:
+            self.lorentz = [lc.Lorentz(model, self.spins, nme, indices) for nme in self.name]
+            self.structure = [ltz.structure for ltz in self.lorentz]
+            self.indices = [ltz.indices for ltz in self.lorentz]
+            self.tensor = [ltz.tensor for ltz in self.lorentz]
+        except:
+            pass
+        # print(self.structure)
 
     def __str__(self):
-        return "V("+', '.join([str(v.get_id()) for v in self.particles])+")"
+        if hasattr(self, 'indices'):
+            return "V("+', '.join([str(v.get_id()) for v in self.particles])+"):{}".format(self.indices)
+            # return "V("+', '.join([str(v.get_id()) for v in self.particles])+")"
+        else:
+            return "V("+', '.join([str(v.get_id()) for v in self.particles])+"):{}".format(self.ufo_vertex)
 
     def __repr__(self):
         return str(self)
@@ -207,72 +234,78 @@ def AddVertex(diagram):
     particles = diagram.free
     diagrams = []
     for v in VERTICES:
-        print(v)
-        vertex = []
-        vertex = MakeVertices(vertex, v, diagram, diagrams)
-        if vertex is not None:
-            print(vertex)
-    raise
-        # for i in range(len(particles)-1):
-        #     pids0 = v.copy()
-        #     # print('here1', pids0)
-        #     if particles[i].pid not in v:
-        #         continue
-        #     pids0.remove(particles[i].pid)
-        #     # print('here2', pids0)
-        #     for j in range(i+1, len(particles)):
-        #         pids = pids0.copy()
-        #         if particles[j].pid not in pids:
-        #             continue
-        #         pids.remove(particles[j].pid)
-        #         # print('here3', pids, particles[j].pid)
-        #         # pids = v.copy()
-        #         new_particles = particles.copy()
-        #         # pids.remove(particles[i].pid)
-        #         # print('here4', pids, len(pids))
-        #         if len(pids) > 1:
-        #             # Handle 4 point
-        #             for k in range(j+1, len(particles)):
-        #                 if particles[k].pid in pids:
-        #                     pids.remove(particles[k].pid)
-        #                     if len(pids) != 1:
-        #                         continue
-        #                     pid = pids[0]
-        #                     new_id = particles[i].id+particles[j].id+particles[k].id
-        #                     new_particles[i] = Particle(new_id, pid)
-        #                     new_particles.remove(new_particles[k])
-        #                     new_particles.remove(new_particles[j])
-        #                     new_diagram = diagram.copy()
-        #                     new_vertex = [particles[i], particles[j], particles[k], new_particles[i]]
-        #                     new_diagram.add_vertex(new_vertex)
-        #                     new_diagram.add_propagator(new_particles[i])
-        #                     new_particles[i] = new_particles[i].conjugate()
-        #                     new_diagram.free = new_particles
-        #                     diagrams.append(new_diagram)
-        #             if len(pids) > 1:
-        #                 continue
-        #         else:
-        #             # print('here5', pids)
-        #             pid = pids[0]
-        #             new_id = particles[i].id+particles[j].id
-        #             new_particles[i] = Particle(new_id, pid)
-        #             new_particles.remove(new_particles[j])
-        #             new_diagram = diagram.copy()
-        #             new_vertex = [particles[i], particles[j], new_particles[i]]
-        #             new_diagram.add_vertex(new_vertex)
-        #             new_diagram.add_propagator(new_particles[i])
-        #             new_particles[i] = new_particles[i].conjugate()
-        #             new_diagram.free = new_particles
-        #             diagrams.append(new_diagram)
-        #    return diagrams
+        # print(v)
+        # vertex = []
+        # vertex = MakeVertices(vertex, v, diagram, diagrams)
+        # if vertex is not None:
+        #     print(vertex)
+        for i in range(len(particles)-1):
+            pids0 = v.copy()
+            # print('here1', pids0)
+            if particles[i].pid not in v:
+                continue
+            pids0.remove(particles[i].pid)
+            # print('here2', pids0)
+            for j in range(i+1, len(particles)):
+                pids = pids0.copy()
+                if particles[j].pid not in pids:
+                    continue
+                pids.remove(particles[j].pid)
+                # print('here3', pids, particles[j].pid)
+                # pids = v.copy()
+                new_particles = particles.copy()
+                # pids.remove(particles[i].pid)
+                # print('here4', pids, len(pids))
+                if len(pids) > 1:
+                    # Handle 4 point
+                    for k in range(j+1, len(particles)):
+                        if particles[k].pid in pids:
+                            pids.remove(particles[k].pid)
+                            if len(pids) != 1:
+                                continue
+                            pid = pids[0]
+                            new_id = particles[i].id+particles[j].id+particles[k].id
+                            new_part = model.particle_map[pid]
+                            new_particles[i] = Particle(new_id, pid, new_part.spin)
+                            new_particles.remove(new_particles[k])
+                            new_particles.remove(new_particles[j])
+                            new_diagram = diagram.copy()
+                            new_vertex = [particles[i], particles[j], particles[k], new_particles[i]]
+                            new_diagram.add_vertex(new_vertex)
+                            new_diagram.add_propagator(new_particles[i])
+                            new_particles[i] = new_particles[i].conjugate()
+                            new_diagram.free = new_particles
+                            diagrams.append(new_diagram)
+                    if len(pids) > 1:
+                        continue
+                else:
+                    # print('here5', pids)
+                    pid = pids[0]
+                    new_id = particles[i].id+particles[j].id
+                    new_part = model.particle_map[pid]
+                    new_particles[i] = Particle(new_id, pid, new_part.spin)
+                    new_particles.remove(new_particles[j])
+                    new_diagram = diagram.copy()
+                    new_vertex = [particles[i], particles[j], new_particles[i]]
+                    new_diagram.add_vertex(new_vertex)
+                    new_diagram.add_propagator(new_particles[i])
+                    new_particles[i] = new_particles[i].conjugate()
+                    new_diagram.free = new_particles
+                    diagrams.append(new_diagram)
+    return diagrams
 
 
 def main(run_card):
     with open(run_card) as stream:
         parameters = yaml.safe_load(stream)
 
+    global model
+    model_name = 'Models.{}'.format(parameters['Model'])
+    model = mc.Model(model_name, all_models)
+
     particles_yaml = parameters['Particles']
     Particle.max_id = 1 << (len(particles_yaml)-1)
+
     for i in range(Particle.max_id << 1):
         PARTMAP[i] = binary_conj(i, len(particles_yaml))
 
@@ -283,7 +316,8 @@ def main(run_card):
         pid = particle[0]
         if particle[1] == 'in' and pid not in (22, 23):
             pid = -pid
-        particles.append(Particle(uid, pid))
+        part = model.particle_map[pid]
+        particles.append(Particle(uid, pid, part.spin))
         uid <<= 1
 
     diagrams = [Diagram(particles)]

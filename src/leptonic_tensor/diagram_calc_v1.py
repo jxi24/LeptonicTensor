@@ -2,7 +2,22 @@ import json
 
 def anti(particle, part_to_anti):
     return part_to_anti[particle]
-    
+
+def partial3_checker(partialSol, part_Dict):
+    if len(partialSol) > 3:
+        return False
+    else:
+        antiPart = anti(part_Dict[partialSol[0]], part_to_anti)
+        part1, part2 = part_Dict[partialSol[1]], part_Dict[partialSol[2]]
+        for vertex in vertices:
+            if antiPart in vertex:
+                new_vertex = list(set(vertex) - {antiPart})
+                if part1 in new_vertex:
+                    newParticle = list(set(new_vertex) - {part1})[0]
+                    if part2 == newParticle:
+                        return True
+        return False
+
 def constructCandidates(partialSol, part_Dict):
     """
     Iterates through partialSol[1:] and checks if antiparticle of partialSol[0] has a vertex
@@ -38,7 +53,6 @@ def constructCandidates(partialSol, part_Dict):
     return candidates
 
 def makeMove(key, value, partialSol, part_Dict):
-    # newSol = list(set(partialSol) - {key})
     newSol = partialSol
     newSol.remove(key)
     #print("  New solution before sorting: {}".format(newSol))
@@ -64,6 +78,15 @@ def backtrack(partialSol, part_Dict, diagrams):
             diagrams.append(partialSol)
         return partialSol
     else:
+        if partial3_checker(partialSol, part_Dict):
+            key, value = partialSol[1], part_Dict[partialSol[2]]
+            #print(partialSol)
+            partialSol = makeMove(key, value, partialSol, part_Dict)
+            #print(partialSol)
+            diagrams.append(partialSol)
+            partialSol = unmakeMove(key, value, partialSol, part_Dict)
+            #print(partialSol)
+            return partialSol
         #print("Partial solution: {}".format(partialSol))
         candidates = constructCandidates(partialSol, part_Dict)
         #print("  Candidates: {}".format(candidates))

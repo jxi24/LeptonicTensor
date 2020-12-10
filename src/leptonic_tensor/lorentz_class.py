@@ -8,7 +8,8 @@ class LorentzInfo:
         self.name = ufo_lorentz.name
         self.model = model
         ufo = ufo_grammer.UFOParser(self.model)
-        self.spins = np.subtract(ufo_lorentz.spins,1)
+        # self.spins = np.subtract(ufo_lorentz.spins,1)
+        self.spins = ufo_lorentz.spins
         self.tensor = ufo(ufo_lorentz.structure)
         self.structure = self.tensor._array
         self.indices = self.tensor._indices
