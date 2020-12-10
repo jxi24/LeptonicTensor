@@ -1,9 +1,10 @@
 import numpy as np
-import collections
+import yaml
+import argparse
 
 VERTICES = [[11, -11, 22], [13, -13, 22], [11, -12, 24], [-11, 12, -24],
             [11, -11, 23], [13, -13, 23], [12, -12, 23], [24, -24, 22],
-            [24, -24, 23]]
+            [24, -24, 23], [24, -24, 22, 22]]
 
 PARTMAP = {}
 
@@ -21,10 +22,9 @@ def binary_conj(x, size):
 class Particle:
     max_id = 0
 
-    def __init__(self, i, pid, direction):
+    def __init__(self, i, pid):
         self.id = i
         self.pid = pid
-        self.direction = direction
 
     def __str__(self):
         sid = self.get_id()
@@ -34,7 +34,7 @@ class Particle:
         pid = self.pid
         if self.pid not in (22, 23):
             pid = -self.pid
-        return Particle(self.id, pid, -self.direction)
+        return Particle(self.id, pid)
 
     def __repr__(self):
         return str(self)
@@ -159,44 +159,133 @@ class Diagram:
         #         J(k) *= Prop(p(k))
 
 
+max_level = 4
+
+
+def GenerateVertex(vertex, pid, diagram, diagrams):
+    particles = diagram.free
+    new_particles = particles.copy()
+    idx = particles.index(vertex[0])
+    print(idx, vertex, particles)
+    for particle in vertex[:0:-1]:
+        print(particle)
+        new_particles.remove(particle)
+    new_id = sum([x.id for x in vertex])
+    print(new_id)
+    new_particles[idx] = Particle(new_id, pid)
+    print(new_particles)
+    new_diagram = diagram.copy()
+    vertex.append(new_particles[idx])
+    print(vertex)
+    new_diagram.add_vertex(vertex)
+    new_diagram.add_propagator(new_particles[idx])
+    new_particles[idx] = new_particles[idx].conjugate()
+    new_diagram.free = new_particles
+    diagrams.append(new_diagram)
+
+
+def MakeVertices(final_vertex, vertex, diagram, diagrams, pos=0, level=0):
+    particles = diagram.free
+    if level == max_level:
+        return None
+    if len(vertex) == 1:
+        GenerateVertex(final_vertex, vertex[0], diagram, diagrams)
+        old_pid = final_vertex.pop()
+        vertex.append(old_pid)
+        return
+    for i in range(pos+1, len(particles)):
+        cvertex = vertex.copy()
+        if particles[i].pid not in cvertex:
+            continue
+        cvertex.remove(particles[i].pid)
+        final_vertex.append(particles[i])
+        MakeVertices(final_vertex, cvertex, diagram, diagrams, i, level+1)
+    return None
+
+
 def AddVertex(diagram):
     particles = diagram.free
     diagrams = []
-    for i in range(len(particles)-1):
-        for j in range(i+1, len(particles)):
-            for v in VERTICES:
-                if particles[i].pid in v and particles[j].pid in v:
-                    new_particles = particles.copy()
-                    pids = list(set(v)
-                                - set((particles[i].pid, particles[j].pid)))
-                    if len(pids) > 1:
-                        continue
-                    pid = pids[0]
-                    new_id = particles[i].id+particles[j].id
-                    new_particles[i] = Particle(new_id, pid, -1)
-                    new_particles.remove(new_particles[j])
-                    new_diagram = diagram.copy()
-                    new_vertex = [particles[i], particles[j], new_particles[i]]
-                    new_diagram.add_vertex(new_vertex)
-                    new_diagram.add_propagator(new_particles[i])
-                    new_particles[i] = new_particles[i].conjugate()
-                    new_diagram.free = new_particles
-                    diagrams.append(new_diagram)
+    for v in VERTICES:
+        print(v)
+        vertex = []
+        vertex = MakeVertices(vertex, v, diagram, diagrams)
+        if vertex is not None:
+            print(vertex)
+    raise
+        # for i in range(len(particles)-1):
+        #     pids0 = v.copy()
+        #     # print('here1', pids0)
+        #     if particles[i].pid not in v:
+        #         continue
+        #     pids0.remove(particles[i].pid)
+        #     # print('here2', pids0)
+        #     for j in range(i+1, len(particles)):
+        #         pids = pids0.copy()
+        #         if particles[j].pid not in pids:
+        #             continue
+        #         pids.remove(particles[j].pid)
+        #         # print('here3', pids, particles[j].pid)
+        #         # pids = v.copy()
+        #         new_particles = particles.copy()
+        #         # pids.remove(particles[i].pid)
+        #         # print('here4', pids, len(pids))
+        #         if len(pids) > 1:
+        #             # Handle 4 point
+        #             for k in range(j+1, len(particles)):
+        #                 if particles[k].pid in pids:
+        #                     pids.remove(particles[k].pid)
+        #                     if len(pids) != 1:
+        #                         continue
+        #                     pid = pids[0]
+        #                     new_id = particles[i].id+particles[j].id+particles[k].id
+        #                     new_particles[i] = Particle(new_id, pid)
+        #                     new_particles.remove(new_particles[k])
+        #                     new_particles.remove(new_particles[j])
+        #                     new_diagram = diagram.copy()
+        #                     new_vertex = [particles[i], particles[j], particles[k], new_particles[i]]
+        #                     new_diagram.add_vertex(new_vertex)
+        #                     new_diagram.add_propagator(new_particles[i])
+        #                     new_particles[i] = new_particles[i].conjugate()
+        #                     new_diagram.free = new_particles
+        #                     diagrams.append(new_diagram)
+        #             if len(pids) > 1:
+        #                 continue
+        #         else:
+        #             # print('here5', pids)
+        #             pid = pids[0]
+        #             new_id = particles[i].id+particles[j].id
+        #             new_particles[i] = Particle(new_id, pid)
+        #             new_particles.remove(new_particles[j])
+        #             new_diagram = diagram.copy()
+        #             new_vertex = [particles[i], particles[j], new_particles[i]]
+        #             new_diagram.add_vertex(new_vertex)
+        #             new_diagram.add_propagator(new_particles[i])
+        #             new_particles[i] = new_particles[i].conjugate()
+        #             new_diagram.free = new_particles
+        #             diagrams.append(new_diagram)
+        #    return diagrams
 
-    return diagrams
 
+def main(run_card):
+    with open(run_card) as stream:
+        parameters = yaml.safe_load(stream)
 
-def main():
-    particles = [Particle(1, -11, 1), Particle(2, 11, 1),
-                 Particle(4, 22, 1), Particle(8, 23, 1),
-                 Particle(16, 12, 1), Particle(32, -12, 1)]
-    # particles = [Particle(1, -11, 1), Particle(2, 11, 1),
-    #              Particle(4, 22, 1), Particle(8, 22, 1),
-    #              Particle(16, 23, 1)]
-    Particle.max_id = 1 << (len(particles)-1)
+    particles_yaml = parameters['Particles']
+    Particle.max_id = 1 << (len(particles_yaml)-1)
     for i in range(Particle.max_id << 1):
-        PARTMAP[i] = binary_conj(i, len(particles))
-    print(PARTMAP)
+        PARTMAP[i] = binary_conj(i, len(particles_yaml))
+
+    particles = []
+    uid = 1
+    for particle in particles_yaml:
+        particle = particle['Particle']
+        pid = particle[0]
+        if particle[1] == 'in' and pid not in (22, 23):
+            pid = -pid
+        particles.append(Particle(uid, pid))
+        uid <<= 1
+
     diagrams = [Diagram(particles)]
     final_diagrams = []
     ndiagrams = 0
@@ -220,4 +309,9 @@ def main():
 
 
 if __name__ == '__main__':
-    main()
+    parser = argparse.ArgumentParser()
+    parser.add_argument('--run_card', default='run_card.yml',
+                        help='Input run card')
+    args = parser.parse_args()
+
+    main(args.run_card)
