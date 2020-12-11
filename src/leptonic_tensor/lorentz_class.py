@@ -11,6 +11,9 @@ class LorentzInfo:
         # self.spins = np.subtract(ufo_lorentz.spins,1)
         self.spins = ufo_lorentz.spins
         self.tensor = ufo(ufo_lorentz.structure)
+        self.label = self.tensor._label
+        if self.label not None: # 4-Momentum
+            
         self.structure = self.tensor._array
         self.indices = self.tensor._indices
         

@@ -57,7 +57,7 @@ class SpinIndex(Index):
 
 
 class Tensor:
-    def __init__(self, array, indices=None):
+    def __init__(self, array, indices=None, label=None):
         self._array = np.array(array)
         self._indices = tuple(indices) if indices is not None else None
         self._scalar = (True if self._indices is None
@@ -67,6 +67,7 @@ class Tensor:
             raise IndexError(f"Tensor not properly indexed. Needs "
                              f"{self._array.ndim} indices, got "
                              f"{len(self._indices)}")
+        self._label = label
 
     def __repr__(self):
         return "Tensor({}, {})".format(self._array, self._indices)

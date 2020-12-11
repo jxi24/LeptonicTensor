@@ -82,10 +82,16 @@ class Metric(lt.Tensor):
 
 # TODO: Figure out how to handle momentum correctly
 class Momentum(lt.Tensor):
-    def __init__(self, p, mu):
+    # def __init__(self, p, mu):
+    #     if not isinstance(mu, lt.Index):
+    #         mu = lt.LorentzIndex(mu)
+    #     super().__init__(p, [mu])
+    def __init__(self, mu, N):
         if not isinstance(mu, lt.Index):
             mu = lt.LorentzIndex(mu)
-        super().__init__(p, [mu])
+        self.id = N
+        p = np.zeros(4, dtype=np.complex)
+        super().__init__(p, [mu], label = self.id)
 
 
 class Identity(lt.Tensor):
@@ -302,3 +308,26 @@ def SpinorV(p, i, hel):
 
 def SpinorVBar(p, i, hel):
     return Spinor(p, i, 1, -(2*hel-1), bar=-1)
+
+class PolarizationVector(lt.Tensor):
+    def __init__(self, p, i, hel=0, spin=3, bar=1):
+        if not isinstance(i, lt.Index):
+            i = lt.SpinIndex(i)
+        self.bar = bar
+        self.epsilon = np.zeros(4, dtype=np.complex)
+        if (p[0]**2 == np.sum(p[1:]**2)):
+            if (p[1] == 0) and (p[2] == 0):  # z-direction p
+                self.epsilon[1] = 1 / np.sqrt(2)
+                if hel == 1:
+                    self.epsilon[2] = 1j / np.sqrt(2)
+                elif hel == -1:
+                    self.epsilon[2] = -1j / np.sqrt(2)
+
+        if self.bar < 0:
+            self.bar = 1
+            self.Bar()
+            
+        super().__init__(self.epsilon, [i])
+        
+    def Bar(self):
+        self.epsilon = self.epsilon.conjugate()
