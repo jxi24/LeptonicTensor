@@ -1,0 +1,8 @@
+Model: SM_NLO
+
+Particles:
+    #           PID, direction (in / out)
+    - Particle: [11, in]
+    - Particle: [13, in]
+    - Particle: [11, out]
+    - Particle: [13, out]

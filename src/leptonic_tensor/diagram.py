@@ -39,7 +39,8 @@ class Particle:
 
     def conjugate(self):
         pid = self.pid
-        if self.pid not in (22, 23):
+        part = model.particle_map[pid]
+        if part.name != part.antiname:
             pid = -self.pid
         return Particle(self.id, pid, self.spin)
 
@@ -294,6 +295,22 @@ def AddVertex(diagram):
                     diagrams.append(new_diagram)
     return diagrams
 
+def SymmetryFactor(diagram):
+    fermion_indices = []
+    for vertex in diagram.vertices:
+        for index in vertex.indices[0]:
+            if index.lorentz == False:
+                fermion_indices.append(index.index)
+    S = 0
+    for i in range(1, len(fermion_indices)):
+        item_to_insert = fermion_indices[i]
+        j = i - 1
+        while j >= 0 and fermion_indices[j] > item_to_insert:
+            fermion_indices[j+1] = fermion_indices[j]
+            j -= 1
+            S += 1
+        fermion_indices[j+1] = item_to_insert
+    return (-1)**S    
 
 def main(run_card):
     with open(run_card) as stream:
@@ -314,9 +331,9 @@ def main(run_card):
     for particle in particles_yaml:
         particle = particle['Particle']
         pid = particle[0]
-        if particle[1] == 'in' and pid not in (22, 23):
-            pid = -pid
         part = model.particle_map[pid]
+        if particle[1] == 'in' and part.name != part.antiname:
+            pid = -pid
         particles.append(Particle(uid, pid, part.spin))
         uid <<= 1
 
@@ -339,7 +356,7 @@ def main(run_card):
         # print(particles_set)
     print(ndiagrams)
     for diagram in final_diagrams:
-        print(diagram.vertices, diagram.propagators)
+        print(diagram.vertices, diagram.propagators, SymmetryFactor(diagram))
 
 
 if __name__ == '__main__':
