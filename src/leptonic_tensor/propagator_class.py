@@ -8,9 +8,9 @@ class PropagatorInfo:
         self.model = model
         ufo = ufo_grammer.UFOParser(self.model)
         propagator_string = ufo_propagator.numerator + '/' + ufo_propagator.denominator
-        self.tensor = ufo(propagator_string)
-        self.structure = self.tensor._array
-        self.indices = self.tensor._indices
+        self.tensor = propagator_string
+        # self.structure = self.tensor._array
+        # self.indices = self.tensor._indices
         
     def __str__(self):
         return '{}: {}, {}'.format(

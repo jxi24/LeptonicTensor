@@ -12,14 +12,13 @@ class LorentzInfo:
         self.spins = ufo_lorentz.spins
         self.tensor = ufo(ufo_lorentz.structure)
         self.label = self.tensor._label
-        #if self.label not None: # 4-Momentum
         self.structure = self.tensor._array
         self.indices = self.tensor._indices
-        
+
     def __str__(self):
         return '{}: {}, {}'.format(
             self.name, self.spins, self.structure)
-    
+
 class Lorentz:
     '''
     For a given Lorentz structure and indices, produce the tensor with
@@ -34,12 +33,10 @@ class Lorentz:
         self.structure = self.info[0]
         self.indices = [lt.Index(indices[idx.index-1], idx.lorentz) for idx in self.info[1]]
         self.tensor = lt.Tensor(self.structure, tuple(self.indices))
-        
+
     def __str__(self):
         return '{}: {}, {}'.format(
             self.name, self.structure, self.indices)
-    
+
     def set_indices(self, idxs):
         return Lorentz(self, self.model, self.spins, self.name, idxs)
-
-    

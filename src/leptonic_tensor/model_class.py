@@ -15,7 +15,8 @@ class Model:
         self.lorentzs = self.model.all_lorentz
         self.propagators = self.model.all_propagators
         self.vertices = self.model.all_vertices
-        
+        self.particles = self.model.all_particles
+
         self.particle_map = self._particle_map()
         self.vertex_map = self._vertex_map()
         self.propagator_map = self._propagator_map()
@@ -23,7 +24,6 @@ class Model:
         parameter_coupling_maps = self._parameter_coupling_map()
         self.parameter_map = parameter_coupling_maps[0]
         self.coupling_map = parameter_coupling_maps[1]
-        
 
     def _particle_map(self):
         particles = self.model.all_particles
@@ -51,7 +51,7 @@ class Model:
         for prop in self.propagators:
             try:
                 pgt = propc.PropagatorInfo(self.model, prop)
-                prop_map[pgt.name] = [pgt.structure, pgt.indices, pgt.tensor]
+                prop_map[pgt.name] = pgt.tensor
             except:
                 pass
         return prop_map
@@ -87,6 +87,6 @@ class Model:
         
         return [parameter_map, coupling_map]
     
-    @property
-    def particles(self):
-        return (', ').join(list(self.particle_map.keys()))
+    # @property
+    # def particles(self):
+    #     return (', ').join(list(self.particle_map.keys()))

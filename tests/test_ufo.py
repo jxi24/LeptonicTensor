@@ -163,3 +163,8 @@ def test_parameters():
     aew = 1/127.8
     result = np.sqrt(mz**2/2. + np.sqrt(mz**4/4. - (aew*np.pi*mz**2)/(gf*np.sqrt(2))))
     assert(ufo("MW") == result)
+
+
+def test_func():
+    amp1 = ufo("def amp1(p1, p2, p3, p4): p1+p2+p3+p4")
+    amp1(p1, p2, p3, p4)

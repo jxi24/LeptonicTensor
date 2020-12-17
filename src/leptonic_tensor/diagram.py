@@ -4,6 +4,7 @@ import argparse
 import models
 import model_class as mc
 import lorentz_class as lc
+import propagator_class as prop
 
 all_models = models.discover_models()
 model = None
@@ -35,7 +36,7 @@ class Particle:
 
     def __str__(self):
         sid = self.get_id()
-        return f'({sid}, {self.pid})'
+        return f'({self.id}, {self.pid})'
 
     def conjugate(self):
         pid = self.pid
@@ -88,10 +89,10 @@ class Vertex:
 
     def __str__(self):
         if hasattr(self, 'indices'):
-            return "V("+', '.join([str(v.get_id()) for v in self.particles])+"):{}".format(self.indices)
+            return "V("+', '.join([str(v.id) for v in self.particles])+"):{}".format(self.indices)
             # return "V("+', '.join([str(v.get_id()) for v in self.particles])+")"
         else:
-            return "V("+', '.join([str(v.get_id()) for v in self.particles])+"):{}".format(self.ufo_vertex)
+            return "V("+', '.join([str(v.id) for v in self.particles])+"):{}".format(self.ufo_vertex)
 
     def __repr__(self):
         return str(self)
@@ -125,9 +126,27 @@ class Vertex:
 class Propagator:
     def __init__(self, particle):
         self.particle = particle
+        ufo_part = model.particle_map[self.particle.pid]
+        mass = ufo_part.mass
+        width = ufo_part.width
+        id1 = self.particle.id
+        id2 = PARTMAP[id1]
+        self.denominator = f'(P({id1})^2-{mass}^2' \
+                           f'-1j*{mass}*{width})'
+        if ufo_part.propagator == 'S':
+            self.numerator = '1'
+        elif ufo_part.propagator == 'F':
+            self.numerator = (f'(P({id1}, mu)*Gamma(mu, {id1}, {id2})'
+                              f'+{mass}*Identity(i, j))')
+        elif ufo_part.propagator == 'V1':
+            self.numerator = (f'(-Metric({id1}, {id2}) '
+                              f'+ P({id1}, {id1}) '
+                              f'* P({id2}, {id2})/{mass}^2)')
+        elif ufo_part.propagator == 'V2':
+            self.numerator = f'-Metric({id1}, {id2})'
 
     def __str__(self):
-        return "P{}".format(self.particle)
+        return "(P{}, {})".format(self.particle, self.numerator+'/'+self.denominator)
 
     def __repr__(self):
         return str(self)
@@ -283,6 +302,8 @@ def AddVertex(diagram):
                     # print('here5', pids)
                     pid = pids[0]
                     new_id = particles[i].id+particles[j].id
+                    if new_id >= 2*Particle.max_id:
+                        continue
                     new_part = model.particle_map[pid]
                     new_particles[i] = Particle(new_id, pid, new_part.spin)
                     new_particles.remove(new_particles[j])
@@ -336,6 +357,8 @@ def main(run_card):
             pid = -pid
         particles.append(Particle(uid, pid, part.spin))
         uid <<= 1
+
+    print(PARTMAP)
 
     diagrams = [Diagram(particles)]
     final_diagrams = []

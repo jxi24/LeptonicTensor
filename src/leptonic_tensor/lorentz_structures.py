@@ -236,6 +236,9 @@ class WeylSpinor:
     def __str__(self):
         return f'<{self.mu[0], self.mu[1]}>'
 
+    def __mul__(self, other):
+        return self.mu[0]*other.mu[1]-self.mu[1]*other.mu[0]
+
 
 class Spinor(lt.Tensor):
     def __init__(self, p, i, mr, hel=0, spin=1, bar=1):
@@ -309,25 +312,74 @@ def SpinorV(p, i, hel):
 def SpinorVBar(p, i, hel):
     return Spinor(p, i, 1, -(2*hel-1), bar=-1)
 
-class PolarizationVector(lt.Tensor):
-    def __init__(self, p, i, hel=0, spin=3, bar=1):
-        if not isinstance(i, lt.Index):
-            i = lt.SpinIndex(i)
-        self.bar = bar
-        self.epsilon = np.zeros(4, dtype=np.complex)
-        if (p[0]**2 == np.sum(p[1:]**2)):
-            if (p[1] == 0) and (p[2] == 0):  # z-direction p
-                self.epsilon[1] = 1 / np.sqrt(2)
-                if hel == 1:
-                    self.epsilon[2] = 1j / np.sqrt(2)
-                elif hel == -1:
-                    self.epsilon[2] = -1j / np.sqrt(2)
 
-        if self.bar < 0:
-            self.bar = 1
-            self.Bar()
-            
+class PolarizationVector(lt.Tensor):
+    def __init__(self, p, i, hel=0, conj=1):
+        self.conj = conj
+        self.k = np.array([1, 1, 0, 0])
+        self.kp = WeylSpinor(1, k)
+        self.km = WeylSpinor(-1, k)
+
+        if not isinstance(i, lt.Index):
+            i = lt.LorentzIndex(i)
+
+        mass2 = p[0]**2 - np.sum(p[1:]**2)
+        if mass2 == 0:
+            if hel == 0:
+                raise RuntimeError("Invalid helicity for massless particle")
+
+            self.epsilon = (self._ep(p) if hel == 1
+                            else self._em(p))
+        else:
+            if hel == 0:
+                self.epsilon = self._eml(p)
+            elif hel == 1:
+                self.epsilon = self._emp(p)
+            elif hel == -1:
+                self.epsilon = self._emm(p)
+
         super().__init__(self.epsilon, [i])
-        
-    def Bar(self):
-        self.epsilon = self.epsilon.conjugate()
+
+    @staticmethod
+    def _vt(a, b):
+        eps = np.zeros(4, dtype=np.complex)
+        eps[0] = a.mu[0]*b.mu[0]+a.mu[1]*b.mu[1]
+        eps[3] = a.mu[0]*b.mu[0]-a.mu[1]*b.mu[1]
+        eps[1] = a.mu[0]*b.mu[1]+a.mu[1]*b.mu[0]
+        eps[2] = 1j*(a.mu[0]*b.mu[1]-a.mu[1]*b.mu[0])
+
+    def _em(self, p):
+        pp = WeylSpinor(1, p)
+        eps = _vt(pp, self.km)
+        eps /= np.sqrt(2)*np.conjugate(self.kp*pp)
+        return eps
+
+    def _ep(self, p):
+        pm = WeylSpinor(-1, p)
+        eps = _vt(self.kp, pm)
+        eps /= np.sqrt(2)*np.conjugate(self.km*pm)
+        return eps
+
+    def _emm(self, p):
+        mass2 = p[0]**2 - np.sum(p[1:]**2)
+        kappa = mass2/(2*(self.k[0]*p[0]-np.sum(self.k[1:]*p[1:])))
+        return self._em(p-kappa*self.k)
+
+    def _emp(self, p):
+        mass2 = p[0]**2 - np.sum(p[1:]**2)
+        kappa = mass2/(2*(self.k[0]*p[0]-np.sum(self.k[1:]*p[1:])))
+        return self._ep(p-kappa*self.k)
+
+    def _eml(self, p):
+        mass2 = p[0]**2 - np.sum(p[1:]**2)
+        dot = 2*(self.k[0]*p[0]-np.sum(self.k[1:]*p[1:]))
+        kappa = mass2/dot
+        b = p - kappa*self.k
+        bm = WeylSpinor(-1, b)
+        bp = WeylSpinor(1, b)
+        eps = self._vt(bp, bm) - kappa*self._vt(self.kp, self.km)
+        eps /= 2*np.sqrt(mass2)
+        return eps
+
+    def Conjugate(self):
+        self.epsilon = np.conjugate(self.epsilon)
