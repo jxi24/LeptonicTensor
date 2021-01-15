@@ -1,6 +1,12 @@
 import numpy as np
 import yaml
 import argparse
+import models
+import model_class as mc
+
+
+all_models = models.discover_models()
+model = mc.Model('Models.SM_NLO', all_models)
 
 VERTICES = [[11, -11, 22], [13, -13, 22], [11, -12, 24], [-11, 12, -24],
             [11, -11, 23], [13, -13, 23], [12, -12, 23], [24, -24, 22],
@@ -101,8 +107,11 @@ class Diagram:
                     for part2 in self.particles[cur2-1]:
                         pids = [part1.pid, part2.pid]
                         # print(pids)
-                        for v in VERTICES:
-                            pids0 = v.copy()
+                        for key in model.vertex_map:
+                            k = list(key)
+                            pids0 = k.copy()
+                        # for v in VERTICES:
+                        #     pids0 = v.copy()
                             if pids[0] not in pids0:
                                 continue
                             pids0.remove(pids[0])
@@ -111,7 +120,7 @@ class Diagram:
                             pids0.remove(pids[1])
                             if len(pids0) == 1:
                                 self.particles[cur-1].add(Particle(cur, pids0[0]))
-                                vert_name = 'V_77' if 22 in v else 'V_117'
+                                vert_name = 'V_77' if 22 in key else 'V_117'
                                 if len(self.currents[cur1-1]) > 1:
                                     j1 = self.currents[cur1-1][icurrent]
                                 else:
@@ -153,10 +162,13 @@ class Particle:
     def __str__(self):
         sid = self.get_id()
         return f'({self.id}, {self.pid})'
-
+    
     def conjugate(self):
-        pid = -self.pid if self.pid not in (22, 23) else self.pid
-        return Particle(self.id, pid, self.spin)
+        pid = self.pid
+        part = model.particle_map[pid]
+        if part.name != part.antiname:
+            pid = -self.pid
+        return Particle(self.id, pid)
 
     def __repr__(self):
         return str(self)
@@ -199,7 +211,8 @@ def main(run_card):
     for particle in particles_yaml:
         particle = particle['Particle']
         pid = particle[0]
-        if particle[1] == 'in' and pid not in (22, 23):
+        part = model.particle_map[pid]
+        if particle[1] == 'in' and part.name != part.antiname:
             pid = -pid
         particles.append(Particle(uid, pid))
         uid <<= 1
