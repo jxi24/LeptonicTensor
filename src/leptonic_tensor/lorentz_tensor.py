@@ -69,6 +69,10 @@ class Tensor:
                              f"{len(self._indices)}")
         self._label = label
 
+    def __call__(self, *args):
+        print("here")
+        return self._array[args]
+
     def __repr__(self):
         return "Tensor({}, {})".format(self._array, self._indices)
 

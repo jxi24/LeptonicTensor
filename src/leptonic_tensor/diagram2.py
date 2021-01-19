@@ -1,6 +1,7 @@
 import numpy as np
 import yaml
 import argparse
+import lorentz_structures as ls
 
 VERTICES = [[11, -11, 22], [13, -13, 22], [11, -12, 24], [-11, 12, -24],
             [11, -11, 23], [13, -13, 23], [12, -12, 23], [24, -24, 22],
@@ -36,12 +37,36 @@ def set_bits(inp, setbits, size):
             iset += 1
 
 
+class Propagator:
+    def __init__(self, particle):
+        self.particle = particle
+        if self.particle.pid == 22:
+            self.denominator = lambda p: p[0]*p[0]-np.sum(p[1:]*p[1:])
+            self.numerator = lambda p: -ls.METRIC_TENSOR
+        else:
+            self.denominator = lambda p: p[0]*p[0]-np.sum(p[1:]*p[1:])-91.18**2-1j*91.18*2.54
+            self.numerator = lambda p: \
+                -ls.METRIC_TENSOR + np.outer(p, p)/91.18**2
+
+    def __call__(self, p):
+        return self.numerator(p)/self.denominator(p)
+            
+    def __str__(self):
+        return "Prop{}".format(self.particle)
+
+    def __repr__(self):
+        return str(self)
+
+    def __eq__(self, other):
+        return self.particle == other.particle
+
+
 class Current:
     def __init__(self, current=''):
         self.current = current
 
     def eps(self, p):
-        self.current = f'eps({p})'
+        self.current = 'eps({})'.format(p)
         return Current(self.current)
 
     def add_vertex(self, v, j1, j2):
@@ -73,14 +98,14 @@ class Current:
 
 
 class Diagram:
-    def __init__(self, particles):
+    def __init__(self, particles, mom):
         self.particles = [set([]) for _ in range(Particle.max_id)]
         self.currents = [[] for _ in range(Particle.max_id)]
+        self.momentum = [[] for _ in range(Particle.max_id)]
         print(len(self.particles))
-        # for i in range(len(self.currents)):
-        #     self.currents[i] = Current()
         for i in range(len(particles)):
             self.particles[(1 << i)-1].add(particles[i])
+            self.momentum[(1 << i)-1] = mom[i]
             self.currents[(1 << i)-1].append(Current().eps((1 << i)-1))
 
         print(self.currents)
@@ -93,14 +118,12 @@ class Diagram:
                 cur1 += setbits[i]*((idx >> i) & 1)
             print('\t- {:07b} {:07b}'.format(cur1, cur ^ cur1))
             cur2 = cur ^ cur1
-            # print(self.particles[cur1-1], self.particles[cur2-1])
             if(self.particles[cur1-1] is not None
                     and self.particles[cur2-1] is not None):
                 icurrent = 0
                 for part1 in self.particles[cur1-1]:
                     for part2 in self.particles[cur2-1]:
                         pids = [part1.pid, part2.pid]
-                        # print(pids)
                         for v in VERTICES:
                             pids0 = v.copy()
                             if pids[0] not in pids0:
@@ -110,8 +133,38 @@ class Diagram:
                                 continue
                             pids0.remove(pids[1])
                             if len(pids0) == 1:
-                                self.particles[cur-1].add(Particle(cur, pids0[0]))
-                                vert_name = 'V_77' if 22 in v else 'V_117'
+                                current_part = Particle(cur, pids0[0])
+                                self.particles[cur-1].add(current_part)
+                                self.momentum[cur-1] = self.momentum[cur1-1] + self.momentum[cur2-1]
+                                if part1.pid < 0:
+                                    afermion = part1.id
+                                    if part2.pid < 20:
+                                        fermion = part2.id
+                                        boson = cur
+                                    else:
+                                        fermion = cur
+                                        boson = part2.id
+                                elif part2.pid < 0:
+                                    afermion = part2.id
+                                    if part1.pid < 20:
+                                        fermion = part1.id
+                                        boson = cur
+                                    else:
+                                        fermion = cur
+                                        boson = part1.id
+                                else:
+                                    afermion = cur
+                                    if part1.pid < 20:
+                                        fermion = part1.id
+                                        boson = part2.id
+                                    else:
+                                        fermion = part2.id
+                                        boson = part1.id
+                                vertex = ls.Gamma(afermion, fermion, boson)
+                                if 22 in v:
+                                    vert_name = 'V_77({},{},{})'.format(afermion, fermion, boson)
+                                else:
+                                    vert_name = 'V_117({},{},{})'.format(afermion, fermion, boson)
                                 if len(self.currents[cur1-1]) > 1:
                                     j1 = self.currents[cur1-1][icurrent]
                                 else:
@@ -122,11 +175,11 @@ class Diagram:
                                     j2 = self.currents[cur2-1][0]
                                 current = '*'.join([vert_name, str(j1), str(j2)])
                                 if cur+1 != 1 << (self.nparts - 1):
-                                    current = current + '*Prop({})'.format(cur)
+                                    prop = Propagator(current_part)
+                                    print(prop(np.array([150, 0, 0, 100])))
+                                    current = current + '*{}'.format(prop)
                                 self.currents[cur-1].append(current)
                         icurrent += 1
-                        # print(self.particles[cur1-1], self.particles[cur2-1])
-                        # print(self.currents)
 
             idx = next_permutation(idx)
 
@@ -204,12 +257,19 @@ def main(run_card):
         particles.append(Particle(uid, pid))
         uid <<= 1
 
-    diagram = Diagram(particles)
+    diagram = Diagram(particles, [1, 2, 4, 8])
 
     for i in range(2, nparts):
         diagram.generate_currents(i, nparts)
 
-    print(diagram.currents)
+    amp = lambda p: diagram.currents[-2](p) # Function of momentum
+    print(diagram.momentum)
+
+    # Generate phase space
+    # Gives a set of momentum
+    current_amp = amp(momentum)
+    lmunu = np.outer(current_amp, np.conj(current_amp))
+
 
 
 if __name__ == '__main__':
