@@ -102,6 +102,30 @@ class Current:
     def __repr__(self):
         return str(self)
 
+def particle_type(pid):
+    if pid < 0:
+        return 'afermion'
+    elif 0 < pid < 20:
+        return 'fermion'
+    else:
+        return 'boson'
+
+def type_sort(part1, part2, cur, cur_pid):
+    type_dict = {part1.id: particle_type(part1.pid),
+                 part2.id: particle_type(part2.pid),
+                 cur: particle_type(cur_pid)}
+    sorted_list = np.empty(3, dtype=int)
+    for key in type_dict:
+        part_type = type_dict[key]
+        if part_type == 'afermion':
+            sorted_list[0] = key
+        elif part_type == 'fermion':
+            sorted_list[1] = key
+        elif part_type == 'boson':
+            sorted_list[2] = key
+            
+    return sorted_list
+    
 
 class Diagram:
     def __init__(self, particles, mom):
@@ -131,10 +155,9 @@ class Diagram:
                     for part2 in self.particles[cur2-1]:
                         pids = [part1.pid, part2.pid]
                         for key in model.vertex_map:
-                            k = list(key)
-                            pids0 = k.copy()
-                        # for v in VERTICES:
-                        #     pids0 = v.copy()
+                            v = list(key)
+                            ufo_vertex = model.vertex_map[key]
+                            pids0 = v.copy()
                             if pids[0] not in pids0:
                                 continue
                             pids0.remove(pids[0])
@@ -145,35 +168,46 @@ class Diagram:
                                 current_part = Particle(cur, pids0[0])
                                 self.particles[cur-1].add(current_part)
                                 self.momentum[cur-1] = self.momentum[cur1-1] + self.momentum[cur2-1]
-                                if part1.pid < 0:
-                                    afermion = part1.id
-                                    if part2.pid < 20:
-                                        fermion = part2.id
-                                        boson = cur
-                                    else:
-                                        fermion = cur
-                                        boson = part2.id
-                                elif part2.pid < 0:
-                                    afermion = part2.id
-                                    if part1.pid < 20:
-                                        fermion = part1.id
-                                        boson = cur
-                                    else:
-                                        fermion = cur
-                                        boson = part1.id
-                                else:
-                                    afermion = cur
-                                    if part1.pid < 20:
-                                        fermion = part1.id
-                                        boson = part2.id
-                                    else:
-                                        fermion = part2.id
-                                        boson = part1.id
+                                if all([part1.pid, part2.pid, pids0[0]]) > 20:
+                                    # do boson stuff.
+                                    continue
+                                
+                                sorted_list = type_sort(part1, part2, cur, pids0[0])
+                                afermion, fermion, boson = sorted_list[0], sorted_list[1], sorted_list[2]
+                                # if part1.pid < 0:
+                                #     afermion = part1.id
+                                #     if part2.pid < 20:
+                                #         fermion = part2.id
+                                #         boson = cur
+                                #     else:
+                                #         fermion = cur
+                                #         boson = part2.id
+                                # elif part2.pid < 0:
+                                #     afermion = part2.id
+                                #     if part1.pid < 20:
+                                #         fermion = part1.id
+                                #         boson = cur
+                                #     else:
+                                #         fermion = cur
+                                #         boson = part1.id
+                                # else:
+                                #     afermion = cur
+                                #     if part1.pid < 20:
+                                #         fermion = part1.id
+                                #         boson = part2.id
+                                #     else:
+                                #         fermion = part2.id
+                                #         boson = part1.id
                                 vertex = ls.Gamma(afermion, fermion, boson)
-                                if 22 in v:
-                                    vert_name = 'V_77({},{},{})'.format(afermion, fermion, boson)
-                                else:
-                                    vert_name = 'V_117({},{},{})'.format(afermion, fermion, boson)
+                                
+                                # if 22 in v:
+                                #     print(ufo_vertex.name)
+                                #     vert_name = 'V_77({},{},{})'.format(afermion, fermion, boson)
+                                # else:
+                                #     print(ufo_vertex.name)
+                                #     vert_name = 'V_117({},{},{})'.format(afermion, fermion, boson)
+                                    
+                                vert_name = ufo_vertex.name + '({},{},{})'.format(afermion, fermion, boson)
                                 if len(self.currents[cur1-1]) > 1:
                                     j1 = self.currents[cur1-1][icurrent]
                                 else:
@@ -280,8 +314,8 @@ def main(run_card):
 
     # Generate phase space
     # Gives a set of momentum
-    current_amp = amp(momentum)
-    lmunu = np.outer(current_amp, np.conj(current_amp))
+    #current_amp = amp(momentum)
+    #lmunu = np.outer(current_amp, np.conj(current_amp))
 
 
 
