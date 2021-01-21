@@ -46,13 +46,14 @@ def set_bits(inp, setbits, size):
 class Propagator:
     def __init__(self, particle):
         self.particle = particle
-        if self.particle.pid == 22:
-            self.denominator = lambda p: p[0]*p[0]-np.sum(p[1:]*p[1:])
-            self.numerator = lambda p: -ls.METRIC_TENSOR
-        else:
-            self.denominator = lambda p: p[0]*p[0]-np.sum(p[1:]*p[1:])-91.18**2-1j*91.18*2.54
-            self.numerator = lambda p: \
-                -ls.METRIC_TENSOR + np.outer(p, p)/91.18**2
+        if self.particle.is_vector:
+            if self.particle.massless() == 0:
+                self.denominator = lambda p: p[0]*p[0]-np.sum(p[1:]*p[1:])
+                self.numerator = lambda p: -ls.METRIC_TENSOR
+            else:
+                self.denominator = lambda p: p[0]*p[0]-np.sum(p[1:]*p[1:])-91.18**2-1j*91.18*2.54
+                self.numerator = lambda p: \
+                    -ls.METRIC_TENSOR + np.outer(p, p)/91.18**2
 
     def __call__(self, p):
         return self.numerator(p)/self.denominator(p)
@@ -136,7 +137,8 @@ class Diagram:
         for i in range(len(particles)):
             self.particles[(1 << i)-1].add(particles[i])
             self.momentum[(1 << i)-1] = mom[i]
-            self.currents[(1 << i)-1].append(Current().eps((1 << i)-1))
+            spinor_mom = np.array([100, 0, 0, 100])
+            self.currents[(1 << i)-1] = [ls.Spinor(spinor_mom, i, 1).u]
 
         print(self.currents)
 
@@ -174,39 +176,8 @@ class Diagram:
                                 
                                 sorted_list = type_sort(part1, part2, cur, pids0[0])
                                 afermion, fermion, boson = sorted_list[0], sorted_list[1], sorted_list[2]
-                                # if part1.pid < 0:
-                                #     afermion = part1.id
-                                #     if part2.pid < 20:
-                                #         fermion = part2.id
-                                #         boson = cur
-                                #     else:
-                                #         fermion = cur
-                                #         boson = part2.id
-                                # elif part2.pid < 0:
-                                #     afermion = part2.id
-                                #     if part1.pid < 20:
-                                #         fermion = part1.id
-                                #         boson = cur
-                                #     else:
-                                #         fermion = cur
-                                #         boson = part1.id
-                                # else:
-                                #     afermion = cur
-                                #     if part1.pid < 20:
-                                #         fermion = part1.id
-                                #         boson = part2.id
-                                #     else:
-                                #         fermion = part2.id
-                                #         boson = part1.id
                                 vertex = ls.Gamma(afermion, fermion, boson)
                                 
-                                # if 22 in v:
-                                #     print(ufo_vertex.name)
-                                #     vert_name = 'V_77({},{},{})'.format(afermion, fermion, boson)
-                                # else:
-                                #     print(ufo_vertex.name)
-                                #     vert_name = 'V_117({},{},{})'.format(afermion, fermion, boson)
-                                    
                                 vert_name = ufo_vertex.name + '({},{},{})'.format(afermion, fermion, boson)
                                 if len(self.currents[cur1-1]) > 1:
                                     j1 = self.currents[cur1-1][icurrent]
@@ -216,11 +187,20 @@ class Diagram:
                                     j2 = self.currents[cur2-1][icurrent]
                                 else:
                                     j2 = self.currents[cur2-1][0]
-                                current = '*'.join([vert_name, str(j1), str(j2)])
+                                vertex = ls.GAMMA_MU
+                                current = np.einsum(sumidx, ls.GAMMA_MU, j1, j2)
+                                print('current:',current)
                                 if cur+1 != 1 << (self.nparts - 1):
                                     prop = Propagator(current_part)
-                                    print(prop(np.array([150, 0, 0, 100])))
-                                    current = current + '*{}'.format(prop)
+                                    if current_part.is_fermion():
+                                        current = np.einsum('ij,j->i', prop(np.array([150,0,0,100])), current)
+                                    elif current_part.is_antifermion():
+                                        current = np.einsum('ji,j->i', prop(np.array([150,0,0,100])), current)
+                                    elif current_part.is_vector():
+                                        current = np.einsum('ji,j->i', prop(np.array([150,0,0,100])), current)
+                                    else:
+                                        current = prop(np.array([150, 0, 0, 100]))*current
+                                    print('current:',current)
                                 self.currents[cur-1].append(current)
                         icurrent += 1
 
@@ -281,6 +261,26 @@ class Particle:
         return (self.get_id() == other.get_id()
                 and abs(self.pid) == abs(other.pid))
 
+    def is_fermion(self):
+        if 0 < self.pid < 20:
+            return True
+        return False
+
+    def is_antifermion(self):
+        if -20 < self.pid < 0:
+            return True
+        return False
+
+    def is_vector(self):
+        if 20 < self.pid and self.pid != 25:
+            return True
+        return False
+
+    def is_scalar(self):
+        if self.pid == 25:
+            return True
+        return False
+
 
 def main(run_card):
     with open(run_card) as stream:
@@ -309,14 +309,15 @@ def main(run_card):
     for i in range(2, nparts):
         diagram.generate_currents(i, nparts)
 
+    print(diagram.currents[-2])
+
     amp = lambda p: diagram.currents[-2](p) # Function of momentum
     print(diagram.momentum)
 
     # Generate phase space
     # Gives a set of momentum
-    #current_amp = amp(momentum)
-    #lmunu = np.outer(current_amp, np.conj(current_amp))
-
+    # current_amp = amp(momentum)
+    # lmunu = np.outer(current_amp, np.conj(current_amp))
 
 
 if __name__ == '__main__':
