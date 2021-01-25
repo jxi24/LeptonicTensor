@@ -116,16 +116,20 @@ def type_sort(part1, part2, cur, cur_pid):
                  part2.id: particle_type(part2.pid),
                  cur: particle_type(cur_pid)}
     sorted_list = np.empty(3, dtype=int)
+    index = {}
     for key in type_dict:
         part_type = type_dict[key]
         if part_type == 'afermion':
             sorted_list[0] = key
+            index[key] = 'i'
         elif part_type == 'fermion':
             sorted_list[1] = key
+            index[key] = 'j'
         elif part_type == 'boson':
             sorted_list[2] = key
+            index[key] = 'm'
             
-    return sorted_list
+    return sorted_list, index
     
 
 class Diagram:
@@ -174,8 +178,10 @@ class Diagram:
                                     # do boson stuff.
                                     continue
                                 
-                                sorted_list = type_sort(part1, part2, cur, pids0[0])
+                                sorted_list, index = type_sort(part1, part2, cur, pids0[0])
                                 afermion, fermion, boson = sorted_list[0], sorted_list[1], sorted_list[2]
+                                sumidx = 'ijm, {}, {} -> {}'.format(index[part1.id], index[part2.id], index[cur])
+                                print(sumidx)
                                 vertex = ls.Gamma(afermion, fermion, boson)
                                 
                                 vert_name = ufo_vertex.name + '({},{},{})'.format(afermion, fermion, boson)
@@ -280,6 +286,9 @@ class Particle:
         if self.pid == 25:
             return True
         return False
+
+    def massless(self):
+        return model.particle_map[self.pid].mass.name != 'ZERO'
 
 
 def main(run_card):
