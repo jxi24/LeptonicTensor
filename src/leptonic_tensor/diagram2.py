@@ -103,34 +103,22 @@ class Current:
     def __repr__(self):
         return str(self)
 
-def particle_type(pid):
-    if pid < 0:
-        return 'afermion'
-    elif 0 < pid < 20:
-        return 'fermion'
-    else:
-        return 'boson'
-
-def type_sort(part1, part2, cur, cur_pid):
-    type_dict = {part1.id: particle_type(part1.pid),
-                 part2.id: particle_type(part2.pid),
-                 cur: particle_type(cur_pid)}
+def type_sort(part1, part2, current_part):
     sorted_list = np.empty(3, dtype=int)
     index = {}
-    for key in type_dict:
-        part_type = type_dict[key]
-        if part_type == 'afermion':
-            sorted_list[0] = key
-            index[key] = 'i'
-        elif part_type == 'fermion':
-            sorted_list[1] = key
-            index[key] = 'j'
-        elif part_type == 'boson':
-            sorted_list[2] = key
-            index[key] = 'm'
+    for part in [part1, part2, current_part]:
+        if part.is_antifermion():
+            sorted_list[0] = part.id
+            index[part.id] = 'i'
+        elif part.is_fermion():
+            sorted_list[1] = part.id
+            index[part.id] = 'j'
+        elif part.is_vector():
+            sorted_list[2] = part.id
+            index[part.id] = 'm'
             
     return sorted_list, index
-    
+            
 
 class Diagram:
     def __init__(self, particles, mom):
@@ -145,6 +133,36 @@ class Diagram:
             self.currents[(1 << i)-1] = [ls.Spinor(spinor_mom, i, 1).u]
 
         print(self.currents)
+
+    def symmetry_factor(self, part1, part2, size):
+        pi1, pi2 = np.zeros(size, dtype=np.int32), np.zeros(size, dtype=np.int32)
+        set_bits(part1.id, pi1, size)
+        set_bits(part2.id, pi2, size)
+        pi1 = list(pi1[pi1 != 0])
+        pi2 = list(pi2[pi2 != 0])
+        for idx in pi1:
+            particle = self.particles[idx-1]
+            particle = list(particle)[0]
+            assert idx == particle.id
+            if particle.is_vector() or particle.is_scalar():
+                pi1.remove(idx)
+        for idx in pi2:
+            particle = self.particles[idx-1]
+            particle = list(particle)[0]
+            assert idx == particle.id
+            if particle.is_vector() or particle.is_scalar():
+                pi2.remove(idx)
+        pi = pi1 + pi2
+        S = 0
+        for i in range(1, len(pi)):
+            item_to_insert = pi[i]
+            j = i - 1
+            while j >= 0 and pi[j] > item_to_insert:
+                pi[j+1] = pi[j]
+                j -= 1
+                S += 1
+            pi[j+1] = item_to_insert
+        return (-1)**S
 
     def sub_current(self, cur, iset, nset, setbits, size):
         idx = (1 << iset) - 1
@@ -162,7 +180,7 @@ class Diagram:
                         pids = [part1.pid, part2.pid]
                         for key in model.vertex_map:
                             v = list(key)
-                            ufo_vertex = model.vertex_map[key]
+                            # ufo_vertex = model.vertex_map[key]
                             pids0 = v.copy()
                             if pids[0] not in pids0:
                                 continue
@@ -174,17 +192,19 @@ class Diagram:
                                 current_part = Particle(cur, pids0[0])
                                 self.particles[cur-1].add(current_part)
                                 self.momentum[cur-1] = self.momentum[cur1-1] + self.momentum[cur2-1]
-                                if all([part1.pid, part2.pid, pids0[0]]) > 20:
+                                if all([part1.is_vector(), part2.is_vector(), current_part.is_vector()]):
                                     # do boson stuff.
                                     continue
                                 
-                                sorted_list, index = type_sort(part1, part2, cur, pids0[0])
-                                afermion, fermion, boson = sorted_list[0], sorted_list[1], sorted_list[2]
+                                S_pi = self.symmetry_factor(part1, part2, size)
+                                print("part1 id: {}, part2 id: {}".format(part1.id, part2.id))
+                                print("symmetry factor: ", S_pi)
+                                sorted_list, index = type_sort(part1, part2, current_part)
+                                # afermion, fermion, boson = sorted_list[0], sorted_list[1], sorted_list[2]
                                 sumidx = 'ijm, {}, {} -> {}'.format(index[part1.id], index[part2.id], index[cur])
-                                print(sumidx)
-                                vertex = ls.Gamma(afermion, fermion, boson)
+                                # vertex = ls.Gamma(afermion, fermion, boson)
                                 
-                                vert_name = ufo_vertex.name + '({},{},{})'.format(afermion, fermion, boson)
+                                # vert_name = ufo_vertex.name + '({},{},{})'.format(afermion, fermion, boson)
                                 if len(self.currents[cur1-1]) > 1:
                                     j1 = self.currents[cur1-1][icurrent]
                                 else:
@@ -193,9 +213,9 @@ class Diagram:
                                     j2 = self.currents[cur2-1][icurrent]
                                 else:
                                     j2 = self.currents[cur2-1][0]
-                                vertex = ls.GAMMA_MU
-                                current = np.einsum(sumidx, ls.GAMMA_MU, j1, j2)
-                                print('current:',current)
+                                # vertex = ls.GAMMA_MU
+                                current = S_pi*np.einsum(sumidx, ls.GAMMA_MU, j1, j2)
+                                #print('current:',current)
                                 if cur+1 != 1 << (self.nparts - 1):
                                     prop = Propagator(current_part)
                                     if current_part.is_fermion():
@@ -206,7 +226,7 @@ class Diagram:
                                         current = np.einsum('ji,j->i', prop(np.array([150,0,0,100])), current)
                                     else:
                                         current = prop(np.array([150, 0, 0, 100]))*current
-                                    print('current:',current)
+                                    #print('current:',current)
                                 self.currents[cur-1].append(current)
                         icurrent += 1
 
@@ -223,7 +243,6 @@ class Diagram:
                 self.sub_current(val, iset, m, setbits, nparts-1)
 
             val = next_permutation(val)
-
 
 class Particle:
     max_id = 0
@@ -313,15 +332,21 @@ def main(run_card):
         particles.append(Particle(uid, pid))
         uid <<= 1
 
-    diagram = Diagram(particles, [1, 2, 4, 8])
+    diagram = Diagram(particles, [1, 2, 4, 8, 16])
 
     for i in range(2, nparts):
         diagram.generate_currents(i, nparts)
 
-    print(diagram.currents[-2])
+    print("Diagram current[-2]: ", diagram.currents[-2])
+    final_curr = sum(diagram.currents[-2])*diagram.currents[-1]
+    print("Final current: ", final_curr)
 
     amp = lambda p: diagram.currents[-2](p) # Function of momentum
-    print(diagram.momentum)
+    #print("Diagram momentum: ", diagram.momentum)
+    #print("Diagram currents: ", diagram.currents)
+    #print("Diagram particles: ", diagram.particles)
+    #print("particles: ", particles)
+    #print("PARTMAP:", PARTMAP)
 
     # Generate phase space
     # Gives a set of momentum
