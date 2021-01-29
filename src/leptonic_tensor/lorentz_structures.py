@@ -40,6 +40,12 @@ CHARGE_CONJ = -1j*GAMMA_2
 
 GAMMA_5 = 1j*np.einsum('ij,jk,kl,lm->im', GAMMA_0, GAMMA_1, GAMMA_2, GAMMA_3)
 GAMMA_MU = np.array([GAMMA_0, GAMMA_1, GAMMA_2, GAMMA_3])
+PROJ_M = (IDENTITY - GAMMA_5)/2
+PROJ_P = (IDENTITY + GAMMA_5)/2
+
+FFV1 = GAMMA_MU
+FFV2 = np.einsum('ijm,jk->ikm', GAMMA_MU, PROJ_M)
+FFV3 = np.einsum('ijm,jk->ikm', GAMMA_MU, PROJ_P)
 
 
 class ChargeConj(lt.Tensor):

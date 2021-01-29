@@ -102,6 +102,36 @@ class Current:
 
     def __repr__(self):
         return str(self)
+    
+class Vertex:
+    def __init__(self, ufo_vertex):
+        self.lorentz_structures = ufo_vertex.lorentz
+        self.couplings = ufo_vertex.couplings
+        self.n_lorentz = len(self.lorentz_structures)
+        self.coupling_matrix = self._cp_matrix()
+        self.lorentz_vector = self._lorentz_vector()
+        self.vertex = self._get_vertex()    
+        
+    def _cp_matrix(self):
+        cp_matrix = np.zeros((self.n_lorentz, self.n_lorentz), dtype=np.complex128)
+        for key, coup in zip(self.couplings.keys(), self.couplings.values()):
+            cp_matrix[key[0], key[1]] = model.coupling_map[coup.name]
+        return cp_matrix
+    
+    def _lorentz_vector(self):
+        lorentz_vector = np.zeros((self.n_lorentz,4,4,4), dtype=np.complex128)
+        for i in range(self.n_lorentz):
+            ufo_lorentz = self.lorentz_structures[i]
+            if ufo_lorentz.name == 'FFV1':
+                lorentz_vector[i] = ls.FFV1
+            elif ufo_lorentz.name == 'FFV2':
+                lorentz_vector[i] = ls.FFV2
+            elif ufo_lorentz.name == 'FFV3':
+                lorentz_vector[i] = ls.FFV3
+        return lorentz_vector
+    def _get_vertex(self):                            
+        vertex = np.sum(np.einsum("ij,jklm->iklm", self.coupling_matrix, self.lorentz_vector), axis=0)
+        return vertex
 
 def type_sort(part1, part2, current_part):
     sorted_list = np.empty(3, dtype=int)
@@ -179,8 +209,7 @@ class Diagram:
                     for part2 in self.particles[cur2-1]:
                         pids = [part1.pid, part2.pid]
                         for key in model.vertex_map:
-                            v = list(key)
-                            # ufo_vertex = model.vertex_map[key]
+                            v = list(key) # pids of vertex
                             pids0 = v.copy()
                             if pids[0] not in pids0:
                                 continue
@@ -195,16 +224,13 @@ class Diagram:
                                 if all([part1.is_vector(), part2.is_vector(), current_part.is_vector()]):
                                     # do boson stuff.
                                     continue
+                                vertex_info = Vertex(model.vertex_map[key])
+                                vertex = vertex_info.vertex
                                 
                                 S_pi = self.symmetry_factor(part1, part2, size)
-                                print("part1 id: {}, part2 id: {}".format(part1.id, part2.id))
-                                print("symmetry factor: ", S_pi)
                                 sorted_list, index = type_sort(part1, part2, current_part)
-                                # afermion, fermion, boson = sorted_list[0], sorted_list[1], sorted_list[2]
                                 sumidx = 'ijm, {}, {} -> {}'.format(index[part1.id], index[part2.id], index[cur])
-                                # vertex = ls.Gamma(afermion, fermion, boson)
-                                
-                                # vert_name = ufo_vertex.name + '({},{},{})'.format(afermion, fermion, boson)
+                            
                                 if len(self.currents[cur1-1]) > 1:
                                     j1 = self.currents[cur1-1][icurrent]
                                 else:
@@ -213,9 +239,9 @@ class Diagram:
                                     j2 = self.currents[cur2-1][icurrent]
                                 else:
                                     j2 = self.currents[cur2-1][0]
-                                # vertex = ls.GAMMA_MU
-                                current = S_pi*np.einsum(sumidx, ls.GAMMA_MU, j1, j2)
-                                #print('current:',current)
+                                    
+                                current = S_pi*np.einsum(sumidx, vertex, j1, j2)
+                                
                                 if cur+1 != 1 << (self.nparts - 1):
                                     prop = Propagator(current_part)
                                     if current_part.is_fermion():
@@ -226,7 +252,7 @@ class Diagram:
                                         current = np.einsum('ji,j->i', prop(np.array([150,0,0,100])), current)
                                     else:
                                         current = prop(np.array([150, 0, 0, 100]))*current
-                                    #print('current:',current)
+                                    
                                 self.currents[cur-1].append(current)
                         icurrent += 1
 
@@ -337,9 +363,9 @@ def main(run_card):
     for i in range(2, nparts):
         diagram.generate_currents(i, nparts)
 
-    print("Diagram current[-2]: ", diagram.currents[-2])
-    final_curr = sum(diagram.currents[-2])*diagram.currents[-1]
-    print("Final current: ", final_curr)
+    #print("Diagram current[-2]: ", diagram.currents[-2])
+    #final_curr = sum(diagram.currents[-2])*diagram.currents[-1]
+    #print("Final current: ", final_curr)
 
     amp = lambda p: diagram.currents[-2](p) # Function of momentum
     #print("Diagram momentum: ", diagram.momentum)
