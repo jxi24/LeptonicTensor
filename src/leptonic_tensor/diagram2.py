@@ -121,18 +121,17 @@ def type_sort(part1, part2, current_part):
             
 
 class Diagram:
-    def __init__(self, particles, mom):
+    def __init__(self, particles, mom, hel):
         self.particles = [set([]) for _ in range(Particle.max_id)]
         self.currents = [[] for _ in range(Particle.max_id)]
         self.momentum = [[] for _ in range(Particle.max_id)]
-        print(len(self.particles))
+        # print(len(self.particles))
         for i in range(len(particles)):
             self.particles[(1 << i)-1].add(particles[i])
             self.momentum[(1 << i)-1] = mom[i]
-            spinor_mom = np.array([100, 0, 0, 100])
-            self.currents[(1 << i)-1] = [ls.Spinor(spinor_mom, i, 1).u]
+            self.currents[(1 << i)-1] = [ls.Spinor(mom[i], hel[i]).u]
 
-        print(self.currents)
+        # print(self.currents)
 
     def symmetry_factor(self, part1, part2, size):
         pi1, pi2 = np.zeros(size, dtype=np.int32), np.zeros(size, dtype=np.int32)
@@ -170,7 +169,7 @@ class Diagram:
             cur1 = 0
             for i in range(size):
                 cur1 += setbits[i]*((idx >> i) & 1)
-            print('\t- {:07b} {:07b}'.format(cur1, cur ^ cur1))
+            # print('\t- {:07b} {:07b}'.format(cur1, cur ^ cur1))
             cur2 = cur ^ cur1
             if(self.particles[cur1-1] is not None
                     and self.particles[cur2-1] is not None):
@@ -195,10 +194,12 @@ class Diagram:
                                 if all([part1.is_vector(), part2.is_vector(), current_part.is_vector()]):
                                     # do boson stuff.
                                     continue
+                                # TODO:
+                                # VVV, FFV, FFS, VVS, SSS
                                 
                                 S_pi = self.symmetry_factor(part1, part2, size)
-                                print("part1 id: {}, part2 id: {}".format(part1.id, part2.id))
-                                print("symmetry factor: ", S_pi)
+                                # print("part1 id: {}, part2 id: {}".format(part1.id, part2.id))
+                                # print("symmetry factor: ", S_pi)
                                 sorted_list, index = type_sort(part1, part2, current_part)
                                 # afermion, fermion, boson = sorted_list[0], sorted_list[1], sorted_list[2]
                                 sumidx = 'ijm, {}, {} -> {}'.format(index[part1.id], index[part2.id], index[cur])
@@ -214,19 +215,20 @@ class Diagram:
                                 else:
                                     j2 = self.currents[cur2-1][0]
                                 # vertex = ls.GAMMA_MU
+                                # TODO: Use proper couplings
                                 current = S_pi*np.einsum(sumidx, ls.GAMMA_MU, j1, j2)
                                 #print('current:',current)
                                 if cur+1 != 1 << (self.nparts - 1):
-                                    prop = Propagator(current_part)
+                                    prop = Propagator(current_part)(self.momentum[cur-1])
                                     if current_part.is_fermion():
-                                        current = np.einsum('ij,j->i', prop(np.array([150,0,0,100])), current)
+                                        current = np.einsum('ij,j->i', prop, current)
                                     elif current_part.is_antifermion():
-                                        current = np.einsum('ji,j->i', prop(np.array([150,0,0,100])), current)
+                                        current = np.einsum('ji,j->i', prop, current)
                                     elif current_part.is_vector():
-                                        current = np.einsum('ji,j->i', prop(np.array([150,0,0,100])), current)
+                                        current = np.einsum('ji,j->i', prop, current)
                                     else:
-                                        current = prop(np.array([150, 0, 0, 100]))*current
-                                    #print('current:',current)
+                                        current = prop*current
+                                # print('current:', current, current_part)
                                 self.currents[cur-1].append(current)
                         icurrent += 1
 
@@ -237,7 +239,7 @@ class Diagram:
         setbits = np.zeros(nparts-1, dtype=np.int32)
         self.nparts = nparts
         while val < (1 << (nparts - 1)):
-            print('Permutation: {:07b}'.format(val))
+            # print('Permutation: {:07b}'.format(val))
             set_bits(val, setbits, nparts-1)
             for iset in range(1, m):
                 self.sub_current(val, iset, m, setbits, nparts-1)
@@ -332,14 +334,33 @@ def main(run_card):
         particles.append(Particle(uid, pid))
         uid <<= 1
 
-    diagram = Diagram(particles, [1, 2, 4, 8, 16])
+    phi = 0
+    costheta = 0
+    sintheta = np.sqrt(1-costheta**2)
+    ecm_array = np.linspace(20, 180, 1701)
 
-    for i in range(2, nparts):
-        diagram.generate_currents(i, nparts)
+    # TODO:
+    # proper phase space and integration
+    # Average over initial state helicities and sum over final state
+    for ecm in ecm_array:
+        mom = ecm/2*np.array(
+                [[1, 0, 0, 1],
+                 [1, 0, 0, -1],
+                 [1, sintheta*np.cos(phi),
+                  sintheta*np.sin(phi), costheta],
+                 [1, -sintheta*np.cos(phi),
+                  -sintheta*np.sin(phi), -costheta]])
 
-    print("Diagram current[-2]: ", diagram.currents[-2])
-    final_curr = sum(diagram.currents[-2])*diagram.currents[-1]
-    print("Final current: ", final_curr)
+        diagram = Diagram(particles, mom, [1, -1, 1, -1])
+
+        for i in range(2, nparts):
+            diagram.generate_currents(i, nparts)
+
+        # print("Diagram current[-2]: ", np.array(diagram.currents[-2]))
+        # print(np.sum(diagram.currents[-2], axis=0), diagram.currents[-1][0])
+        final_curr = np.einsum('i,i->', np.sum(diagram.currents[-2], axis=0), diagram.currents[-1][0])
+        # print("Final amplitude: ", final_curr)
+        print("ecm {}, Final matrix^2: ".format(ecm), np.linalg.norm(final_curr))
 
     amp = lambda p: diagram.currents[-2](p) # Function of momentum
     #print("Diagram momentum: ", diagram.momentum)
