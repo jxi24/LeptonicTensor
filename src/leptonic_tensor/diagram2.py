@@ -104,10 +104,11 @@ class Current:
         return str(self)
     
 class Vertex:
-    def __init__(self, ufo_vertex):
+    def __init__(self, ufo_vertex, mom=None):
         self.lorentz_structures = ufo_vertex.lorentz
         self.couplings = ufo_vertex.couplings
         self.n_lorentz = len(self.lorentz_structures)
+        self.mom = mom
         self.coupling_matrix = self._cp_matrix()
         self.lorentz_vector = self._lorentz_vector()
         self.vertex = self._get_vertex()    
@@ -128,6 +129,34 @@ class Vertex:
                 lorentz_vector[i] = ls.FFV2
             elif ufo_lorentz.name == 'FFV3':
                 lorentz_vector[i] = ls.FFV3
+            elif ufo_lorentz.name == 'VVV1':
+                lorentz_vector[i] = ls.VVV('VVV1', self.mom).lorentz_tensor
+            elif ufo_lorentz.name == 'VVV2':
+                lorentz_vector[i] = ls.VVV('VVV2', self.mom).lorentz_tensor
+            elif ufo_lorentz.name == 'VVV3':
+                lorentz_vector[i] = ls.VVV('VVV3', self.mom).lorentz_tensor
+            elif ufo_lorentz.name == 'VVV4':
+                lorentz_vector[i] = ls.VVV('VVV4', self.mom).lorentz_tensor
+            elif ufo_lorentz.name == 'VVV5':
+                lorentz_vector[i] = ls.VVV('VVV5', self.mom).lorentz_tensor
+            elif ufo_lorentz.name == 'VVV6':
+                lorentz_vector[i] = ls.VVV('VVV6', self.mom).lorentz_tensor
+            elif ufo_lorentz.name == 'VVV7':
+                lorentz_vector[i] = ls.VVV('VVV7', self.mom).lorentz_tensor
+            elif ufo_lorentz.name == 'VVV8':
+                lorentz_vector[i] = ls.VVV('VVV8', self.mom).lorentz_tensor
+            elif ufo_lorentz.name == 'VVS1':
+                lorentz_vector[i] = ls.VVS1
+            elif ufo_lorentz.name == 'FFS1':
+                lorentz_vector[i] = ls.FFS1
+            elif ufo_lorentz.name == 'FFS2':
+                lorentz_vector[i] = ls.FFS2
+            elif ufo_lorentz.name == 'FFS3':
+                lorentz_vector[i] = ls.FFS3
+            elif ufo_lorentz.name == 'FFS4':
+                lorentz_vector[i] = ls.FFS4
+            elif ufo_lorentz.name == 'SSS1':
+                lorentz_vector[i] = ls.SSS1
         return lorentz_vector
     def _get_vertex(self):                            
         vertex = np.sum(np.einsum("ij,jklm->iklm", self.coupling_matrix, self.lorentz_vector), axis=0)
@@ -221,7 +250,9 @@ class Diagram:
                                 self.particles[cur-1].add(current_part)
                                 self.momentum[cur-1] = self.momentum[cur1-1] + self.momentum[cur2-1]
                                 if all([part1.is_vector(), part2.is_vector(), current_part.is_vector()]):
-                                    # do boson stuff.
+                                    mom = [self.momentum[cur1-1], self.momentum[cur2-1], self.momentum[cur-1]]
+                                    vertex_info = Vertex(model.vertex_map[key], mom)
+                                    vertex = vertex_info.vertex
                                     continue
 
                                 vertex_info = Vertex(model.vertex_map[key])
@@ -366,7 +397,7 @@ def main(run_card):
     phi = 0
     costheta = 0
     sintheta = np.sqrt(1-costheta**2)
-    ecm_array = np.linspace(20, 180, 1701)
+    ecm_array = np.linspace(20, 180, 171)
 
     # TODO:
     # proper phase space and integration
@@ -387,6 +418,7 @@ def main(run_card):
 
         final_curr = np.einsum('i,i->', np.sum(diagram.currents[-2], axis=0), diagram.currents[-1][0])
         print("ecm {}, Final matrix^2: ".format(ecm), np.linalg.norm(final_curr))
+        #print("momentums: {}".format(diagram.momentum))
 
     amp = lambda p: diagram.currents[-2](p) # Function of momentum
     #print("Diagram momentum: ", diagram.momentum)

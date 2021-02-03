@@ -46,7 +46,48 @@ PROJ_P = (IDENTITY + GAMMA_5)/2
 FFV1 = GAMMA_MU
 FFV2 = np.einsum('ij,jkm->ikm', PROJ_M, GAMMA_MU)
 FFV3 = np.einsum('ij,jkm->ikm', PROJ_P, GAMMA_MU)
+VVS1 = METRIC_TENSOR
+FFS1 = GAMMA_5
+FFS2 = IDENTITY
+FFS3 = PROJ_M
+FFS4 = PROJ_P
+SSS1 = 1
 
+class VVV:
+    def __init__(self, name, mom):
+        self.name = name
+        if self.name == 'VVV1':
+            P = mom[0]
+            VVV1 = np.einsum("i,jk->jki", P, METRIC_TENSOR)
+            self.lorentz_tensor = VVV1
+        elif self.name == 'VVV2':
+            P = mom[1]
+            VVV2 = np.einsum("i,jk->jki", P, METRIC_TENSOR)
+            self.lorentz_tensor = VVV2
+        elif self.name == 'VVV3':
+            P = mom[2]
+            VVV3 = np.einsum("i,jk->jki", P, METRIC_TENSOR)
+            self.lorentz_tensor = VVV3
+        elif self.name == 'VVV4':
+            P = mom[0]
+            VVV4 = np.einsum("i,jk->jik", P, METRIC_TENSOR)
+            self.lorentz_tensor = VVV4
+        elif self.name == 'VVV5':
+            P = mom[1]
+            VVV5 = np.einsum("i,jk->jik", P, METRIC_TENSOR)
+            self.lorentz_tensor = VVV5
+        elif self.name == 'VVV6':
+            P = mom[2]
+            VVV6 = np.einsum("i,jk->jik", P, METRIC_TENSOR)
+            self.lorentz_tensor = VVV6
+        elif self.name == 'VVV7':
+            P = mom[1]
+            VVV7 = np.einsum("i,jk->ijk", P, METRIC_TENSOR)
+            self.lorentz_tensor = VVV7
+        elif self.name == 'VVV8':
+            P = mom[2]
+            VVV8 = np.einsum("i,jk->ijk", P, METRIC_TENSOR)
+            self.lorentz_tensor = VVV8
 
 class ChargeConj(lt.Tensor):
     def __init__(self, i, j):
