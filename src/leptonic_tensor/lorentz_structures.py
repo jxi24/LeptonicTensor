@@ -40,12 +40,17 @@ CHARGE_CONJ = -1j*GAMMA_2
 
 GAMMA_5 = 1j*np.einsum('ij,jk,kl,lm->im', GAMMA_0, GAMMA_1, GAMMA_2, GAMMA_3)
 GAMMA_MU = np.array([GAMMA_0, GAMMA_1, GAMMA_2, GAMMA_3])
+<<<<<<< HEAD
 PROJ_M = (IDENTITY - GAMMA_5)/2
 PROJ_P = (IDENTITY + GAMMA_5)/2
 
 FFV1 = GAMMA_MU
 FFV2 = np.einsum('ijm,jk->ikm', GAMMA_MU, PROJ_M)
 FFV3 = np.einsum('ijm,jk->ikm', GAMMA_MU, PROJ_P)
+=======
+PLGAMMA_MU = np.einsum('ij,jkm->ikm', (1-GAMMA_5)/2, GAMMA_MU)
+PRGAMMA_MU = np.einsum('ij,jkm->ikm', (1+GAMMA_5)/2, GAMMA_MU)
+>>>>>>> 9f890cb4fea34f591e771b1257683e8e6bca4d5e
 
 
 class ChargeConj(lt.Tensor):
@@ -246,10 +251,6 @@ class WeylSpinor:
         return self.mu[0]*other.mu[1]-self.mu[1]*other.mu[0]
 
 
-class Spinor(lt.Tensor):
-    def __init__(self, p, i, mr, hel=0, spin=1, bar=1):
-        if not isinstance(i, lt.Index):
-            i = lt.SpinIndex(i)
         self.bar = bar
         self.u = np.zeros(4, dtype=np.complex)
         if np.all(p[1:] == 0):
@@ -294,8 +295,6 @@ class Spinor(lt.Tensor):
         if self.bar < 0:
             self.bar = 1
             self.Bar()
-
-        super().__init__(self.u, [i])
 
     def Bar(self):
         self.u = np.array([self.u[2], self.u[3], self.u[0], self.u[1]])
