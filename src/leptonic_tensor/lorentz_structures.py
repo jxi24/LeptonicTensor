@@ -356,15 +356,12 @@ def SpinorVBar(p, i, hel):
     return Spinor(p, i, 1, -(2*hel-1), bar=-1)
 
 
-class PolarizationVector(lt.Tensor):
-    def __init__(self, p, i, hel=0, conj=1):
+class PolarizationVector:
+    def __init__(self, p, hel=0, conj=1):
         self.conj = conj
         self.k = np.array([1, 1, 0, 0])
         self.kp = WeylSpinor(1, k)
         self.km = WeylSpinor(-1, k)
-
-        if not isinstance(i, lt.Index):
-            i = lt.LorentzIndex(i)
 
         mass2 = p[0]**2 - np.sum(p[1:]**2)
         if mass2 == 0:
@@ -380,8 +377,6 @@ class PolarizationVector(lt.Tensor):
                 self.epsilon = self._emp(p)
             elif hel == -1:
                 self.epsilon = self._emm(p)
-
-        super().__init__(self.epsilon, [i])
 
     @staticmethod
     def _vt(a, b):
