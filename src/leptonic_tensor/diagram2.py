@@ -178,6 +178,19 @@ def type_sort(part1, part2, current_part):
             
     return sorted_list, index
             
+def alph_sort(part1, part2, current_part, mom1, mom2, mom3):
+    part_tuples = [
+        (mom1, model.particle_map[part1.pid].name, part1.id),
+        (mom2, model.particle_map[part2.pid].name, part2.id),
+        (mom3, model.particle_map[current_part.pid].name, current_part.id)
+        ]
+    part_tuples.sort(key= lambda part_tuple:part_tuple[1])
+    mom = [part_tuple[0] for part_tuple in part_tuples]
+    vert_indices = {}
+    idxs = ['a','b','m']
+    for part_tuple in part_tuples:
+        vert_indices[part_tuple[2]] = idxs.pop()
+    return mom, vert_indices
 
 class Diagram:
     def __init__(self, particles, mom, hel):
@@ -188,8 +201,15 @@ class Diagram:
         for i in range(len(particles)):
             self.particles[(1 << i)-1].add(particles[i])
             self.momentum[(1 << i)-1] = mom[i]
-            self.currents[(1 << i)-1] = [ls.Spinor(mom[i], hel[i]).u]
-
+            if particles[i].is_fermion():
+                self.currents[(1 << i)-1] = [ls.Spinor(mom[i], hel[i]).u]
+                #print("ext current: spinor")
+            elif particles[i].is_antifermion():
+                self.currents[(1 << i)-1] = [ls.Spinor(mom[i], hel[i], bar=-1).u]
+                #print("ext current: spinor bar")
+            elif particles[i].is_vector():
+                self.currents[(1 << i)-1] = [ls.PolarizationVector(mom[i], hel[i]).epsilon]
+                #print("ext current: epsilon")
         # print(self.currents)
 
     def symmetry_factor(self, part1, part2, size):
@@ -249,23 +269,22 @@ class Diagram:
                                 current_part = Particle(cur, pids0[0])
                                 self.particles[cur-1].add(current_part)
                                 self.momentum[cur-1] = self.momentum[cur1-1] + self.momentum[cur2-1]
-                                if all([part1.is_vector(), part2.is_vector(), current_part.is_vector()]):
-                                    mom = [self.momentum[cur1-1], self.momentum[cur2-1], self.momentum[cur-1]]
-                                    vertex_info = Vertex(model.vertex_map[key], mom)
-                                    vertex = vertex_info.vertex
-                                    continue
-
-                                vertex_info = Vertex(model.vertex_map[key])
-                                vertex = vertex_info.vertex
-                                
-                                S_pi = self.symmetry_factor(part1, part2, size)
-
-                                # TODO:
-                                # VVV, FFV, FFS, VVS, SSS
-                                
                                 sorted_list, index = type_sort(part1, part2, current_part)
-                                sumidx = 'ijm, {}, {} -> {}'.format(index[part1.id], index[part2.id], index[cur])
-                            
+                                ufo_vertex = model.vertex_map[key]
+                                if 'VVV' in ufo_vertex.lorentz[0].name:
+                                    mom, vert_indices = alph_sort(part1, part2, current_part, self.momentum[cur1-1], self.momentum[cur2-1], self.momentum[cur-1])
+                                    vertex_info = Vertex(ufo_vertex, mom)
+                                    vertex = vertex_info.vertex
+                                    S_pi = 1
+                                    sumidx = 'abm, {}, {} -> {}'.format(vert_indices[part1.id], vert_indices[part2.id], vert_indices[current_part.id])
+
+                                elif 'FFV' in ufo_vertex.lorentz[0].name:
+                                    vertex_info = Vertex(ufo_vertex)
+                                    vertex = vertex_info.vertex
+                                    S_pi = self.symmetry_factor(part1, part2, size)
+                                    sumidx = 'ijm, {}, {} -> {}'.format(index[part1.id], index[part2.id], index[cur])
+
+                               
                                 if len(self.currents[cur1-1]) > 1:
                                     j1 = self.currents[cur1-1][icurrent]
                                 else:
@@ -276,8 +295,6 @@ class Diagram:
                                     j2 = self.currents[cur2-1][0]
                                     
                                 current = S_pi*np.einsum(sumidx, vertex, j1, j2)
-
-                                # TODO: Use proper couplings
                                 
                                 if cur+1 != 1 << (self.nparts - 1):
                                     prop = Propagator(current_part)(self.momentum[cur-1])
@@ -417,7 +434,7 @@ def main(run_card):
             diagram.generate_currents(i, nparts)
 
         final_curr = np.einsum('i,i->', np.sum(diagram.currents[-2], axis=0), diagram.currents[-1][0])
-        print("ecm {}, Final matrix^2: ".format(ecm), np.linalg.norm(final_curr))
+        # print("ecm {}, Final matrix^2: ".format(ecm), np.linalg.norm(final_curr))
         #print("momentums: {}".format(diagram.momentum))
 
     amp = lambda p: diagram.currents[-2](p) # Function of momentum

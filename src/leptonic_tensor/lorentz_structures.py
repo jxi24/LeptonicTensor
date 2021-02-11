@@ -360,8 +360,8 @@ class PolarizationVector:
     def __init__(self, p, hel=0, conj=1):
         self.conj = conj
         self.k = np.array([1, 1, 0, 0])
-        self.kp = WeylSpinor(1, k)
-        self.km = WeylSpinor(-1, k)
+        self.kp = WeylSpinor(1, self.k)
+        self.km = WeylSpinor(-1, self.k)
 
         mass2 = p[0]**2 - np.sum(p[1:]**2)
         if mass2 == 0:
@@ -388,13 +388,13 @@ class PolarizationVector:
 
     def _em(self, p):
         pp = WeylSpinor(1, p)
-        eps = _vt(pp, self.km)
+        eps = self._vt(pp, self.km)
         eps /= np.sqrt(2)*np.conjugate(self.kp*pp)
         return eps
 
     def _ep(self, p):
         pm = WeylSpinor(-1, p)
-        eps = _vt(self.kp, pm)
+        eps = self._vt(self.kp, pm)
         eps /= np.sqrt(2)*np.conjugate(self.km*pm)
         return eps
 
