@@ -4,16 +4,69 @@ import argparse
 import lorentz_structures as ls
 import models
 import model_class as mc
+import matplotlib.pyplot as plt
 
 
 all_models = models.discover_models()
 model = mc.Model('Models.SM_NLO', all_models)
 
-VERTICES = [[11, -11, 22], [13, -13, 22], [11, -12, 24], [-11, 12, -24],
-            [11, -11, 23], [13, -13, 23], [12, -12, 23], [24, -24, 22],
-            [24, -24, 23], [24, -24, 22, 22]]
-
 PARTMAP = {}
+
+
+def Pt(mom):
+    return np.sqrt(mom[:, 1]**2 + mom[:, 2]**2)
+
+
+def CosTheta(mom):
+    return np.cos(np.arctan2(Pt(mom), mom[:, 3]))
+
+
+def Dot(mom1, mom2):
+    return (mom1[:, 0]*mom2[:, 0])[:, None]-np.sum(mom1[:, 1:]*mom2[:, 1:],
+                                                   axis=-1, keepdims=True)
+
+
+class Rambo:
+    def __init__(self, nin, nout):
+        self.nin = nin
+        self.nout = nout
+        pi2log = np.log(np.pi/2.)
+        Z = np.zeros(nout+1)
+        Z[2] = pi2log
+        for k in range(3, nout+1):
+            Z[k] = Z[k-1]+pi2log-2.*np.log(k-2)
+        for k in range(3, nout+1):
+            Z[k] -= np.log(k-1)
+        self.Z_N = Z[nout]
+
+    def __call__(self, p, rans):
+        sump = np.zeros((rans.shape[0], 4))
+        for i in range(self.nin):
+            sump += p[:, i, :]
+        ET = np.sqrt(Dot(sump, sump))
+
+        R = np.zeros((rans.shape[0], 4))
+        for i in range(self.nin, self.nin+self.nout):
+            ctheta = 2*rans[:, 4*(i-self.nin)] - 1
+            stheta = np.sqrt(1-ctheta**2)
+            phi = 2*np.pi*rans[:, 1 + 4*(i-self.nin)]
+            Q = -np.log(rans[:, 2+4*(i-self.nin)]*rans[:, 3+4*(i-self.nin)])
+            p[:, i, :] = np.array([Q, Q*stheta*np.sin(phi), Q*stheta*np.cos(phi), Q*ctheta]).T
+            R += p[:, i, :]
+
+        RMAS = np.sqrt(Dot(R, R))
+        B = -R[:, 1:]/RMAS
+        G = R[:, 0, None]/RMAS
+        A = 1.0/(1.0+G)
+        X = ET/RMAS
+
+        for i in range(self.nin, self.nin+self.nout):
+            e = p[:, i, 0, None]
+            BQ = np.sum(B*p[:, i, 1:], axis=-1, keepdims=True)
+            term1 = (G*e)+BQ
+            term2 = B*(e+A*BQ)
+            p[:, i, 0, None] = X*term1
+            p[:, i, 1:] = X*(p[:, i, 1:] + term2)
 
 
 def binary_conj(x, size):
@@ -48,12 +101,12 @@ class Propagator:
         self.particle = particle
         if self.particle.is_vector:
             if self.particle.massless() == 0:
-                self.denominator = lambda p: p[0]*p[0]-np.sum(p[1:]*p[1:])
-                self.numerator = lambda p: -ls.METRIC_TENSOR
+                self.denominator = lambda p: (p[:, 0]*p[:, 0]-np.sum(p[:, 1:]*p[:, 1:], axis=-1))[:, np.newaxis, np.newaxis]
+                self.numerator = lambda p: -1j*ls.METRIC_TENSOR[np.newaxis, ...]
             else:
-                self.denominator = lambda p: p[0]*p[0]-np.sum(p[1:]*p[1:])-91.18**2-1j*91.18*2.54
+                self.denominator = lambda p: (p[:, 0]*p[:, 0]-np.sum(p[:, 1:]*p[:, 1:], axis=-1)-91.18**2-1j*91.18*2.54)[:, np.newaxis, np.newaxis]
                 self.numerator = lambda p: \
-                    -ls.METRIC_TENSOR + np.outer(p, p)/91.18**2
+                    -1j*ls.METRIC_TENSOR[np.newaxis, ...] + 1j*np.einsum('bi,bj->bij', p, p)/91.18**2
 
     def __call__(self, p):
         return self.numerator(p)/self.denominator(p)
@@ -200,15 +253,15 @@ class Diagram:
         # print(len(self.particles))
         for i in range(len(particles)):
             self.particles[(1 << i)-1].add(particles[i])
-            self.momentum[(1 << i)-1] = mom[i]
+            self.momentum[(1 << i)-1] = mom[:, i, :]
             if particles[i].is_fermion():
-                self.currents[(1 << i)-1] = [ls.Spinor(mom[i], hel[i]).u]
+                self.currents[(1 << i)-1] = [ls.Spinor(mom[:, i, :], hel[i]).u]
                 #print("ext current: spinor")
             elif particles[i].is_antifermion():
-                self.currents[(1 << i)-1] = [ls.Spinor(mom[i], hel[i], bar=-1).u]
+                self.currents[(1 << i)-1] = [ls.Spinor(mom[:, i, :], hel[i], bar=-1).u]
                 #print("ext current: spinor bar")
             elif particles[i].is_vector():
-                self.currents[(1 << i)-1] = [ls.PolarizationVector(mom[i], hel[i]).epsilon]
+                self.currents[(1 << i)-1] = [ls.PolarizationVector(mom[:, i, :], hel[i]).epsilon]
                 #print("ext current: epsilon")
         # print(self.currents)
 
@@ -276,15 +329,14 @@ class Diagram:
                                     vertex_info = Vertex(ufo_vertex, mom)
                                     vertex = vertex_info.vertex
                                     S_pi = 1
-                                    sumidx = 'abm, {}, {} -> {}'.format(vert_indices[part1.id], vert_indices[part2.id], vert_indices[current_part.id])
+                                    sumidx = 'abm, b{}, b{} -> b{}'.format(vert_indices[part1.id], vert_indices[part2.id], vert_indices[current_part.id])
 
                                 elif 'FFV' in ufo_vertex.lorentz[0].name:
                                     vertex_info = Vertex(ufo_vertex)
                                     vertex = vertex_info.vertex
                                     S_pi = self.symmetry_factor(part1, part2, size)
-                                    sumidx = 'ijm, {}, {} -> {}'.format(index[part1.id], index[part2.id], index[cur])
+                                    sumidx = 'ijm, b{}, b{} -> b{}'.format(index[part1.id], index[part2.id], index[cur])
 
-                               
                                 if len(self.currents[cur1-1]) > 1:
                                     j1 = self.currents[cur1-1][icurrent]
                                 else:
@@ -293,19 +345,19 @@ class Diagram:
                                     j2 = self.currents[cur2-1][icurrent]
                                 else:
                                     j2 = self.currents[cur2-1][0]
-                                    
+ 
                                 current = S_pi*np.einsum(sumidx, vertex, j1, j2)
-                                
                                 if cur+1 != 1 << (self.nparts - 1):
                                     prop = Propagator(current_part)(self.momentum[cur-1])
                                     if current_part.is_fermion():
-                                        current = np.einsum('ij,j->i', prop, current)
+                                        current = np.einsum('bij,bj->bi', prop, current)
                                     elif current_part.is_antifermion():
-                                        current = np.einsum('ji,j->i', prop, current)
+                                        current = np.einsum('bji,bj->bi', prop, current)
                                     elif current_part.is_vector():
-                                        current = np.einsum('ji,j->i', prop, current)
+                                        current = np.einsum('bij,bj->bi', prop, current)
                                     else:
                                         current = prop*current
+
                                 self.currents[cur-1].append(current)
                         icurrent += 1
 
@@ -397,8 +449,8 @@ def main(run_card):
     nparts = len(particles_yaml)
     Particle.max_id = 1 << (nparts - 1)
 
-    for i in range(Particle.max_id << 1):
-        PARTMAP[i] = binary_conj(i, nparts)
+    # for i in range(Particle.max_id << 1):
+    #     PARTMAP[i] = binary_conj(i, nparts)
 
     particles = []
     uid = 1
@@ -414,43 +466,75 @@ def main(run_card):
     phi = 0
     costheta = 0
     sintheta = np.sqrt(1-costheta**2)
-    ecm_array = np.linspace(20, 180, 171)
+    ecm_array = np.linspace(20, 200, 100)
+    results = np.zeros_like(ecm_array)
+    hbarc2 = 0.38937966e9 
 
     # TODO:
     # proper phase space and integration
     # Average over initial state helicities and sum over final state
-    for ecm in ecm_array:
-        mom = ecm/2*np.array(
-                [[1, 0, 0, 1],
-                 [1, 0, 0, -1],
-                 [1, sintheta*np.cos(phi),
-                  sintheta*np.sin(phi), costheta],
-                 [1, -sintheta*np.cos(phi),
-                  -sintheta*np.sin(phi), -costheta]])
+    # mom = ecm_array[:,np.newaxis,np.newaxis]/2*np.array(
+    #             [[[-1, 0, 0, -1],
+    #              [-1, 0, 0, 1],
+    #              [1, sintheta*np.cos(phi),
+    #               sintheta*np.sin(phi), costheta],
+    #              [1, -sintheta*np.cos(phi),
+    #               -sintheta*np.sin(phi), -costheta]]])
 
-        diagram = Diagram(particles, mom, [1, -1, 1, -1])
+    # for hel1 in range(2):
+    #     for hel2 in range(2):
+    #         for hel3 in range(2):
+    #             for hel4 in range(2):
+    #                 diagram = Diagram(particles, mom, [2*hel1-1, 2*hel2-1, 2*hel3-1, 2*hel4-1])
+ 
+    #                 for i in range(2, nparts):
+    #                     diagram.generate_currents(i, nparts)
 
-        for i in range(2, nparts):
-            diagram.generate_currents(i, nparts)
+    #                 final_curr = np.einsum('bi,bi->b', np.sum(np.array(diagram.currents[-2]), axis=0), diagram.currents[-1][0])
+    #                 results += np.absolute(final_curr)**2/(2*ecm_array**2)/4*hbarc2
 
-        final_curr = np.einsum('i,i->', np.sum(diagram.currents[-2], axis=0), diagram.currents[-1][0])
-        # print("ecm {}, Final matrix^2: ".format(ecm), np.linalg.norm(final_curr))
-        #print("momentums: {}".format(diagram.momentum))
+    # plt.plot(ecm_array, results)
+    # plt.yscale('log')
+    # plt.show()
 
-    amp = lambda p: diagram.currents[-2](p) # Function of momentum
-    #print("Diagram momentum: ", diagram.momentum)
-    #print("Diagram currents: ", diagram.currents)
-    #print("Diagram particles: ", diagram.particles)
-    #print("particles: ", particles)
-    #print("PARTMAP:", PARTMAP)
+    rambo = Rambo(2, 2)
+    nevents = 100000
+    xsec = np.zeros_like(ecm_array)
+    for i, ecm in enumerate(ecm_array):
+        mom = np.array([[-ecm/2, 0, 0, -ecm/2],
+                        [-ecm/2, 0, 0, ecm/2],
+                        [0, 0, 0, 0],
+                        [0, 0, 0, 0]], dtype=np.float64)
+        mom = np.tile(mom, (nevents, 1, 1))
+        rans = np.random.random((nevents, 8))
+        rambo(mom, rans)
 
-    # Generate phase space
-    # Gives a set of momentum
-    # current_amp = amp(momentum)
-    # lmunu = np.outer(current_amp, np.conj(current_amp))
+        results = np.zeros(nevents, dtype=np.float64)
+        for hel1 in range(2):
+            for hel2 in range(2):
+                for hel3 in range(2):
+                    for hel4 in range(2):
+                        diagram = Diagram(particles, mom, [2*hel1-1, 2*hel2-1, 2*hel3-1, 2*hel4-1])
+ 
+                        for j in range(2, nparts):
+                            diagram.generate_currents(j, nparts)
+
+                        final_curr = np.einsum('bi,bi->b', np.sum(np.array(diagram.currents[-2]), axis=0), diagram.currents[-1][0])
+                        results += np.absolute(final_curr)**2/(2*ecm**2)/4*hbarc2
+        cos_theta = CosTheta(mom[:, 2, :]) 
+        print(np.mean(results), np.std(results))
+        plt.hist(cos_theta, weights=results, bins=np.linspace(-1,1,100))
+        plt.show()
+        raise
+        xsec[i] = np.mean(results)
+
+    plt.plot(ecm_array, xsec)
+    plt.yscale('log')
+    plt.show()
 
 
 if __name__ == '__main__':
+    np.random.seed(123456789)
     parser = argparse.ArgumentParser()
     parser.add_argument('--run_card', default='run_card.yml',
                         help='Input run card')

@@ -264,78 +264,83 @@ class WeylSpinor:
     def __init__(self, mr, p):
         if abs(mr) != 1:
             raise ValueError("mr should be +/- 1")
-        rpp = np.sqrt(p[0]+p[3]+0j)
-        rpm = np.sqrt(p[0]-p[3]+0j)
-        pt = p[1] + 1j*p[2]
-        self.mu = np.array([rpp, rpm])
-        if abs(pt) > 0:
-            self.mu[1] = (pt.real + 1j*mr*pt.imag)/rpp
+        rpp = np.sqrt(p[:, 0]+p[:, 3]+0j)
+        rpm = np.sqrt(p[:, 0]-p[:, 3]+0j)
+        pt = p[:, 1] + 1j*p[:, 2]
+        self.mu = np.stack([rpp, rpm], axis=-1)
+        sv = abs(1e-8*p[:, 0])
+        mask = np.logical_and(np.logical_or(abs(pt.real) > sv, abs(pt.imag) > sv),
+                              np.logical_or(abs(rpp.real) > sv, abs(rpp.imag) > sv))
+        self.mu[:, 1] = np.where(mask, (pt.real + 1j*mr*pt.imag)/rpp, self.mu[:, 1])
 
-    def __getitem__(self, i):
-        if i > 2:
-            raise IndexError()
-        return self.mu[i]
+    def __getitem__(self, *args):
+        return self.mu[args]
 
     def __neg__(self):
         self.mu = -self.mu
         return self
 
     def __str__(self):
-        return f'<{self.mu[0], self.mu[1]}>'
+        return str(self.mu)
 
     def __mul__(self, other):
-        return self.mu[0]*other.mu[1]-self.mu[1]*other.mu[0]
+        return self.mu[:, 0]*other.mu[:, 1]-self.mu[:, 1]*other.mu[:, 0]
 
 
 class Spinor:
     def __init__(self, p, mr, hel=0, spin=1, bar=1):
         self.bar = bar
-        self.u = np.zeros(4, dtype=np.complex)
-        if np.all(p[1:] == 0):
-            rte = np.sqrt(p[0]+0j)
+        self.u = np.zeros((p.shape[0], 4), dtype=np.complex)
+        if np.all(p[:, 1:] == 0):
+            rte = np.sqrt(p[:, 0]+0j)
             if (mr > 0) ^ (hel < 0):  # u+(p, m) / v-(p, m)
-                self.u[2] = rte
+                self.u[:, 2] = rte
             else:  # u-(p, m) / v+(p, m)
-                self.u[1] = -rte
+                self.u[:, 1] = -rte
             sgn = 1 if mr > 0 else -1
             r = 0 if (mr > 0) ^ (hel < 0) else 2
-            self.u[0 + r] = sgn*self.u[2 - r]
-            self.u[1 + r] = sgn*self.u[3 - r]
+            self.u[:, 0 + r] = sgn*self.u[:, 2 - r]
+            self.u[:, 1 + r] = sgn*self.u[:, 3 - r]
             self.on = 3
         else:
             ph = p.copy()
-            ps = np.sqrt(np.sum(p[1:]**2))
-            ph[0] = -ps if p[0] < 0 else ps
+            ps = np.sqrt(np.sum(p[:, 1:]**2, axis=-1))
+            ph[:, 0] = np.where(p[:, 0] < 0, -ps, ps)
             if (mr > 0) ^ (hel < 0):  # u+(p, m) / v-(p, m)
-                sh = WeylSpinor(1, ph)
-                self.u[2] = sh[0]
-                self.u[3] = sh[1]
+                sh = WeylSpinor(1, ph).mu
+                self.u[:, 2] = sh[:, 0]
+                self.u[:, 3] = sh[:, 1]
                 self.on = 2
             else:  # u-(p, m) / v+(p, m)
-                sh = WeylSpinor(-1, ph)
-                if p[0] < 0:
-                    sh = -sh
-                self.u[0] = sh[1]
-                self.u[1] = -sh[0]
+                sh = WeylSpinor(-1, ph).mu
+                sh = np.where(p[:, 0, np.newaxis] < 0, -sh, sh)
+                self.u[:, 0] = sh[:, 1]
+                self.u[:, 1] = -sh[:, 0]
                 self.on = 1
-            m2 = p[0]**2 - np.sum(p[1:]**2)
-            if m2 > 1e-8:
-                sgn = 1 if (mr > 0) ^ (spin < 0) else -1
-                omp = np.sqrt(p[0]+ph[0]+0j)/(2*ph[0])
-                omm = np.sqrt(p[0]-ph[0]+0j)/(2*ph[0])
-                r = 0 if (mr > 0) ^ (hel < 0) else 2
-                self.u[0 + r] = sgn*omm*self.u[2 - r]
-                self.u[1 + r] = sgn*omm*self.u[3 - r]
-                self.u[2 - r] *= omp
-                self.u[3 - r] *= omp
-                self.on = 3
+            m2 = p[:, 0]**2 - np.sum(p[:, 1:]**2)
+            self.u = np.where(m2[:, None] > 1e-8, self.Massive(p, ph, mr, hel, spin), self.u)
 
         if self.bar < 0:
             self.bar = 1
             self.Bar()
 
+    def Massive(self, p, ph, mr, hel, spin):
+        u = self.u.copy()
+        sgn = 1 if (mr > 0) ^ (spin < 0) else -1
+        omp = np.sqrt(p[:, 0]+ph[:, 0]+0j)/(2*ph[:, 0])
+        omm = np.sqrt(p[:, 0]-ph[:, 0]+0j)/(2*ph[:, 0])
+        r = 0 if (mr > 0) ^ (hel < 0) else 2
+        u[:, 0 + r] = sgn*omm*u[:, 2 - r]
+        u[:, 1 + r] = sgn*omm*u[:, 3 - r]
+        u[:, 2 - r] *= omp
+        u[:, 3 - r] *= omp
+        return u
+
     def Bar(self):
-        self.u = np.array([self.u[2], self.u[3], self.u[0], self.u[1]])
+        # self.u[:] = np.transpose(self.u[:], (2, 3, 0, 1))
+        # self.u[:, 2:3], self.u[:, 0:1] = self.u[:, 0:1], self.u[:, 2:3]
+        self.u[:, [2, 0]] = self.u[:, [0, 2]]
+        self.u[:, [3, 1]] = self.u[:, [1, 3]]
         self.u = self.u.conjugate()
         self.on = (self.on & 1) << 1 | (self.on & 2) >> 1
 
