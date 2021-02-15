@@ -68,6 +68,8 @@ class Rambo:
             p[:, i, 0, None] = X*term1
             p[:, i, 1:] = X*(p[:, i, 1:] + term2)
 
+        return np.exp((2*self.nout-4)*np.log(ET)+self.Z_N)/(2*np.pi)**(self.nout*3 - 4)
+
 
 def binary_conj(x, size):
     vals = []
@@ -507,9 +509,9 @@ def main(run_card):
                         [0, 0, 0, 0]], dtype=np.float64)
         mom = np.tile(mom, (nevents, 1, 1))
         rans = np.random.random((nevents, 8))
-        rambo(mom, rans)
+        weights = rambo(mom, rans)
 
-        results = np.zeros(nevents, dtype=np.float64)
+        results = np.zeros((nevents, 1), dtype=np.float64)
         for hel1 in range(2):
             for hel2 in range(2):
                 for hel3 in range(2):
@@ -520,7 +522,7 @@ def main(run_card):
                             diagram.generate_currents(j, nparts)
 
                         final_curr = np.einsum('bi,bi->b', np.sum(np.array(diagram.currents[-2]), axis=0), diagram.currents[-1][0])
-                        results += np.absolute(final_curr)**2/(2*ecm**2)/4*hbarc2
+                        results += np.absolute(final_curr[:, None])**2/(2*ecm**2)/4*hbarc2*weights
         cos_theta = CosTheta(mom[:, 2, :]) 
         print(np.mean(results), np.std(results))
         plt.hist(cos_theta, weights=results, bins=np.linspace(-1,1,100))
