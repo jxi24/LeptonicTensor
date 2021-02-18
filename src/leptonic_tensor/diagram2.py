@@ -39,6 +39,12 @@ class Rambo:
             Z[k] -= np.log(k-1)
         self.Z_N = Z[nout]
 
+    def cut(self, p):
+        cosThetaMax = 0.4
+        return np.where(abs(CosTheta(p[:, 2, :])) < cosThetaMax,
+                        np.ones(p.shape[0]),
+                        np.zeros(p.shape[0]))
+
     def __call__(self, p, rans):
         sump = np.zeros((rans.shape[0], 4))
         for i in range(self.nin):
@@ -68,7 +74,9 @@ class Rambo:
             p[:, i, 0, None] = X*term1
             p[:, i, 1:] = X*(p[:, i, 1:] + term2)
 
-        return np.exp((2*self.nout-4)*np.log(ET)+self.Z_N)/(2*np.pi)**(self.nout*3 - 4)
+
+        wgt = np.exp((2*self.nout-4)*np.log(ET)+self.Z_N)/(2*np.pi)**(self.nout*3 - 4)
+        return self.cut(p)[:, None]*wgt
 
 
 def binary_conj(x, size):
@@ -106,9 +114,11 @@ class Propagator:
                 self.denominator = lambda p: (p[:, 0]*p[:, 0]-np.sum(p[:, 1:]*p[:, 1:], axis=-1))[:, np.newaxis, np.newaxis]
                 self.numerator = lambda p: -1j*ls.METRIC_TENSOR[np.newaxis, ...]
             else:
-                self.denominator = lambda p: (p[:, 0]*p[:, 0]-np.sum(p[:, 1:]*p[:, 1:], axis=-1)-91.18**2-1j*91.18*2.54)[:, np.newaxis, np.newaxis]
+                mass = particle.mass
+                width = particle.width
+                self.denominator = lambda p: (p[:, 0]*p[:, 0]-np.sum(p[:, 1:]*p[:, 1:], axis=-1)-mass**2-1j*mass*width)[:, np.newaxis, np.newaxis]
                 self.numerator = lambda p: \
-                    -1j*ls.METRIC_TENSOR[np.newaxis, ...] + 1j*np.einsum('bi,bj->bij', p, p)/91.18**2
+                    -1j*ls.METRIC_TENSOR[np.newaxis, ...] + 1j*np.einsum('bi,bj->bij', p, p)/mass**2
 
     def __call__(self, p):
         return self.numerator(p)/self.denominator(p)
@@ -166,7 +176,8 @@ class Vertex:
         self.mom = mom
         self.coupling_matrix = self._cp_matrix()
         self.lorentz_vector = self._lorentz_vector()
-        self.vertex = self._get_vertex()    
+        self.vertex = self._get_vertex()
+        # print(ufo_vertex.name, self.coupling_matrix, self.couplings)
         
     def _cp_matrix(self):
         cp_matrix = np.zeros((self.n_lorentz, self.n_lorentz), dtype=np.complex128)
@@ -215,6 +226,7 @@ class Vertex:
         return lorentz_vector
     def _get_vertex(self):                            
         vertex = np.sum(np.einsum("ij,jklm->iklm", self.coupling_matrix, self.lorentz_vector), axis=0)
+        # print(vertex)
         return vertex
 
 def type_sort(part1, part2, current_part):
@@ -248,20 +260,21 @@ def alph_sort(part1, part2, current_part, mom1, mom2, mom3):
     return mom, vert_indices
 
 class Diagram:
-    def __init__(self, particles, mom, hel):
+    def __init__(self, particles, mom, hel, mode):
         self.particles = [set([]) for _ in range(Particle.max_id)]
         self.currents = [[] for _ in range(Particle.max_id)]
         self.momentum = [[] for _ in range(Particle.max_id)]
+        self.mode = mode
         # print(len(self.particles))
         for i in range(len(particles)):
             self.particles[(1 << i)-1].add(particles[i])
             self.momentum[(1 << i)-1] = mom[:, i, :]
             if particles[i].is_fermion():
-                self.currents[(1 << i)-1] = [ls.Spinor(mom[:, i, :], hel[i]).u]
-                #print("ext current: spinor")
+                self.currents[(1 << i)-1] = [ls.SpinorU(mom[:, i, :], hel[i]).u]
+                # print("ext current: spinor {}: {}".format(i, ls.Spinor(mom[:, i, :], hel[i]).u))
             elif particles[i].is_antifermion():
-                self.currents[(1 << i)-1] = [ls.Spinor(mom[:, i, :], hel[i], bar=-1).u]
-                #print("ext current: spinor bar")
+                self.currents[(1 << i)-1] = [ls.SpinorUBar(mom[:, i, :], hel[i]).u]
+                # print("ext current: spinor bar {}: {}".format(i, ls.Spinor(mom[:, i, :], hel[i], bar=-1).u))
             elif particles[i].is_vector():
                 self.currents[(1 << i)-1] = [ls.PolarizationVector(mom[:, i, :], hel[i]).epsilon]
                 #print("ext current: epsilon")
@@ -331,13 +344,13 @@ class Diagram:
                                     vertex_info = Vertex(ufo_vertex, mom)
                                     vertex = vertex_info.vertex
                                     S_pi = 1
-                                    sumidx = 'abm, b{}, b{} -> b{}'.format(vert_indices[part1.id], vert_indices[part2.id], vert_indices[current_part.id])
+                                    sumidx = 'agm, b{}, b{} -> b{}'.format(vert_indices[part1.id], vert_indices[part2.id], vert_indices[current_part.id])
 
                                 elif 'FFV' in ufo_vertex.lorentz[0].name:
                                     vertex_info = Vertex(ufo_vertex)
                                     vertex = vertex_info.vertex
                                     S_pi = self.symmetry_factor(part1, part2, size)
-                                    sumidx = 'ijm, b{}, b{} -> b{}'.format(index[part1.id], index[part2.id], index[cur])
+                                    sumidx = 'mij, b{}, b{} -> b{}'.format(index[part1.id], index[part2.id], index[cur])
 
                                 if len(self.currents[cur1-1]) > 1:
                                     j1 = self.currents[cur1-1][icurrent]
@@ -349,7 +362,7 @@ class Diagram:
                                     j2 = self.currents[cur2-1][0]
  
                                 current = S_pi*np.einsum(sumidx, vertex, j1, j2)
-                                if cur+1 != 1 << (self.nparts - 1):
+                                if (cur+1 != 1 << (self.nparts - 1) or self.mode == 'lmunu'):
                                     prop = Propagator(current_part)(self.momentum[cur-1])
                                     if current_part.is_fermion():
                                         current = np.einsum('bij,bj->bi', prop, current)
@@ -359,6 +372,9 @@ class Diagram:
                                         current = np.einsum('bij,bj->bi', prop, current)
                                     else:
                                         current = prop*current
+                                # print(current)
+                                # if(current_part.pid == 23):
+                                #     current *= 0
 
                                 self.currents[cur-1].append(current)
                         icurrent += 1
@@ -448,6 +464,7 @@ def main(run_card):
         parameters = yaml.safe_load(stream)
 
     particles_yaml = parameters['Particles']
+    mode = parameters['Mode']
     nparts = len(particles_yaml)
     Particle.max_id = 1 << (nparts - 1)
 
@@ -468,9 +485,10 @@ def main(run_card):
     phi = 0
     costheta = 0
     sintheta = np.sqrt(1-costheta**2)
-    ecm_array = np.linspace(20, 200, 100)
+    ecm_array = np.linspace(20, 200, 51)
     results = np.zeros_like(ecm_array)
     hbarc2 = 0.38937966e9 
+    alpha = 1/127.9
 
     # TODO:
     # proper phase space and integration
@@ -500,8 +518,9 @@ def main(run_card):
     # plt.show()
 
     rambo = Rambo(2, 2)
-    nevents = 100000
+    nevents = 1
     xsec = np.zeros_like(ecm_array)
+    afb = np.zeros_like(ecm_array)
     for i, ecm in enumerate(ecm_array):
         mom = np.array([[-ecm/2, 0, 0, -ecm/2],
                         [-ecm/2, 0, 0, ecm/2],
@@ -512,26 +531,51 @@ def main(run_card):
         weights = rambo(mom, rans)
 
         results = np.zeros((nevents, 1), dtype=np.float64)
+        lmunu = np.zeros((nevents, 4, 4), dtype=np.complex128)
         for hel1 in range(2):
             for hel2 in range(2):
                 for hel3 in range(2):
                     for hel4 in range(2):
-                        diagram = Diagram(particles, mom, [2*hel1-1, 2*hel2-1, 2*hel3-1, 2*hel4-1])
+                        diagram = Diagram(particles, mom, [2*hel1-1, 2*hel2-1, 2*hel3-1, 2*hel4-1], mode)
  
                         for j in range(2, nparts):
                             diagram.generate_currents(j, nparts)
 
-                        final_curr = np.einsum('bi,bi->b', np.sum(np.array(diagram.currents[-2]), axis=0), diagram.currents[-1][0])
-                        results += np.absolute(final_curr[:, None])**2/(2*ecm**2)/4*hbarc2*weights
-        cos_theta = CosTheta(mom[:, 2, :]) 
-        print(np.mean(results), np.std(results))
-        plt.hist(cos_theta, weights=results, bins=np.linspace(-1,1,100))
-        plt.show()
-        raise
+                        final_curr = np.sum(np.array(diagram.currents[-2]), axis=0)
+                        if mode == "lmunu":
+                            lmunu += np.einsum('bi, bj -> bij', final_curr, final_curr)
+                        else:
+                            amplitude = np.einsum('bi,bi->b', np.sum(np.array(diagram.currents[-2]), axis=0), diagram.currents[-1][0])
+                            results += np.absolute(final_curr[:, None])**2
+                        # print(np.einsum('bi,bi->b', diagram.currents[-2][0], diagram.currents[-1][0]))
+                        # print(np.einsum('bi,bi->b', diagram.currents[-2][1], diagram.currents[-1][0]))
+                        # print(hel1, hel2, hel3, hel4, final_curr, np.absolute(final_curr[:, None])**2)
+                        # raise
+        cos_theta = CosTheta(mom[:, 2, :])
+        # s, t, u = Mandelstam(mom)
+        spinavg = 4
+        flux = 2*ecm**2
+        results = results/flux/spinavg*hbarc2*weights
+        exact = 4*np.pi*alpha**2*hbarc2/(3*ecm**2)
+        # exact_moller = 8.41905*alpha**2*hbarc2*2*np.pi/(ecm**2)
+        # exact_compton = 2*alpha**2*hbarc2*2 
+        print(ecm, np.mean(results), np.std(results)/np.sqrt(nevents), exact)
+        nfwd = np.sum(results[cos_theta > 0])/nevents
+        nbck = np.sum(results[cos_theta < 0])/nevents
+        afb[i] = (nfwd - nbck)/np.mean(results)
+        print(nfwd, nbck, afb[i])
+        nbins = 100
+        cos_theta_exact = np.linspace(-0.4, 0.4, nbins+1)
+        dsigma_moller = alpha**2*hbarc2*(3+cos_theta_exact**2)**2/(ecm**2)*2*np.pi/(1-cos_theta_exact**2)**2
+        # dsigma = alpha**2*hbarc2*(1+cos_theta_exact**2)/(4*ecm**2)*2*np.pi
+        # plt.hist(cos_theta, weights=results/nevents/(2/nbins), bins=np.linspace(-1,1,nbins+1))
+        # plt.plot(cos_theta_exact, dsigma_moller)
+        # plt.show()
+        # raise
         xsec[i] = np.mean(results)
 
-    plt.plot(ecm_array, xsec)
-    plt.yscale('log')
+    plt.plot(ecm_array, afb)
+    # plt.yscale('log')
     plt.show()
 
 

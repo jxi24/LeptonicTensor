@@ -44,8 +44,8 @@ PROJ_M = (IDENTITY - GAMMA_5)/2
 PROJ_P = (IDENTITY + GAMMA_5)/2
 
 FFV1 = GAMMA_MU
-FFV2 = np.einsum('ij,jkm->ikm', PROJ_M, GAMMA_MU)
-FFV3 = np.einsum('ij,jkm->ikm', PROJ_P, GAMMA_MU)
+FFV2 = np.einsum('mij,jk->mik', GAMMA_MU, PROJ_M)
+FFV3 = np.einsum('mij,jk->mik', GAMMA_MU, PROJ_P)
 VVS1 = METRIC_TENSOR
 FFS1 = GAMMA_5
 FFS2 = IDENTITY
@@ -271,7 +271,10 @@ class WeylSpinor:
         sv = abs(1e-8*p[:, 0])
         mask = np.logical_and(np.logical_or(abs(pt.real) > sv, abs(pt.imag) > sv),
                               np.logical_or(abs(rpp.real) > sv, abs(rpp.imag) > sv))
-        self.mu[:, 1] = np.where(mask, (pt.real + 1j*mr*pt.imag)/rpp, self.mu[:, 1])
+        self.mu[:, 1] = np.where(mask,
+                                 np.divide(pt.real + 1j*mr*pt.imag,
+                                           rpp, out=np.zeros_like(self.mu[:, 1]), where=rpp!=0),
+                                 self.mu[:, 1])
 
     def __getitem__(self, *args):
         return self.mu[args]
@@ -345,12 +348,12 @@ class Spinor:
         self.on = (self.on & 1) << 1 | (self.on & 2) >> 1
 
 
-def SpinorU(p, i, hel):
-    return Spinor(p, i, 1, 2*hel-1)
+def SpinorU(p, hel):
+    return Spinor(p, 1, 2*hel-1)
 
 
-def SpinorUBar(p, i, hel):
-    return Spinor(p, i, 1, 2*hel-1, bar=-1)
+def SpinorUBar(p, hel):
+    return Spinor(p, 1, 2*hel-1, bar=-1)
 
 
 def SpinorV(p, i, hel):
