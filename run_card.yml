@@ -1,0 +1,9 @@
+Model: SM_NLO
+Mode: lmunu
+
+Particles:
+    #           PID, direction (in / out)
+    - Particle: [11, in]
+    - Particle: [-11, in]
+    - Particle: [13, out]
+    - Particle: [-13, out]
