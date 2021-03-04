@@ -1,5 +1,5 @@
 Model: SM_NLO
-Mode: lmunu
+Mode: 
 
 Particles:
     #           PID, direction (in / out)

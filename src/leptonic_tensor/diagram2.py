@@ -115,8 +115,8 @@ class Propagator:
                 self.denominator = lambda p: (p[:, 0]*p[:, 0]-np.sum(p[:, 1:]*p[:, 1:], axis=-1))[:, np.newaxis, np.newaxis]
                 self.numerator = lambda p: -1j*ls.METRIC_TENSOR[np.newaxis, ...]
             else:
-                mass = particle.mass
-                width = particle.width
+                mass = 91.81 #particle.mass
+                width = 2.54 #particle.width
                 self.denominator = lambda p: (p[:, 0]*p[:, 0]-np.sum(p[:, 1:]*p[:, 1:], axis=-1)-mass**2-1j*mass*width)[:, np.newaxis, np.newaxis]
                 self.numerator = lambda p: \
                     -1j*ls.METRIC_TENSOR[np.newaxis, ...] + 1j*np.einsum('bi,bj->bij', p, p)/mass**2
@@ -354,9 +354,6 @@ class Diagram:
 
                                 elif 'FFV' in ufo_vertex.lorentz[0].name:
                                     vertex_info = Vertex(ufo_vertex)
-                                    print(vertex_info.couplings)
-                                    print(vertex_info.lorentz_structures)
-                                    print(vertex_info.vertex)
                                     # raise
                                     vertex = vertex_info.vertex
                                     vertex = np.tile(vertex, (batch,1,1,1))
@@ -375,11 +372,8 @@ class Diagram:
                                     j2 = self.currents[cur2-1][0]
  
                                 current = S_pi*np.einsum(sumidx, vertex, j1, j2)
-                                print(S_pi, j1, j2)
-                                print("Current: ", np.shape(current), current, cur)
                                 if (cur+1 != 1 << (self.nparts - 1)): # so if cur+1 != 8.
                                     prop = Propagator(current_part)(self.momentum[cur-1])
-                                    print("Propagator: ", np.shape(prop), prop)  # Correct for QED vertex.
                                     if current_part.is_fermion():
                                         current = np.einsum('bij,bj->bi', prop, current)
                                     elif current_part.is_antifermion():
@@ -388,8 +382,6 @@ class Diagram:
                                         current = np.einsum('bij,bj->bi', prop, current)
                                     else:
                                         current = prop*current
-                                        
-                                    print("New Current {}: {}".format((cur), current))
                                 # print(current)
                                 # if(current_part.pid == 23):
                                 #     current *= 0
@@ -548,8 +540,9 @@ def main(run_card):
     # plt.yscale('log')
     # plt.show()
 
-    rambo = Rambo(2, 2)
-    nevents = 1
+    nout = 2
+    rambo = Rambo(2, nout)
+    nevents = 5
     xsec = np.zeros_like(ecm_array)
     afb = np.zeros_like(ecm_array)
     for i, ecm in enumerate(ecm_array):
@@ -558,9 +551,9 @@ def main(run_card):
                         [0, 0, 0, 0],
                         [0, 0, 0, 0]], dtype=np.float64)
         mom = np.tile(mom, (nevents, 1, 1))
-        rans = np.random.random((nevents, 8))
+        rans = np.random.random((nevents, 4*nout))
         weights = rambo(mom, rans)
-
+        
         results = np.zeros((nevents, 1), dtype=np.float64)
         results2 = np.zeros((nevents, 1), dtype=np.float64)
         lmunu = np.zeros((nevents, 4, 4), dtype=np.complex128)
@@ -585,50 +578,32 @@ def main(run_card):
         lmunu2 = np.zeros((nevents, 4, 4), dtype=np.complex128)
         lmunu2_curr = np.zeros((nevents, 4), dtype=np.complex128)
         
-        # xsec_diffLR = 0
         # xsec_diff
         for hel1 in range(2):
             for hel2 in range(2):
-                for hel3 in range(1):
-                    for hel4 in range(1):
-                        diagram = Diagram(particles, mom, [2*hel1-1, 2*hel2-1, 2*hel3-1, 2*hel4-1], mode)
-                        
-                        for j in range(2, nparts):
-                            diagram.generate_currents(j, nparts)
+                diagram = Diagram(particles, mom, [2*hel1-1, 2*hel2-1, 1, 1], mode)
+                
+                for j in range(2, nparts):
+                    diagram.generate_currents(j, nparts)
 
-                        final_curr = np.sum(np.array(diagram.currents[-2]), axis=0)
-                        lmunu2_curr += np.sum(np.array(diagram.currents[3-1]), axis=0)
-                        #print(lmunu2_curr, np.shape(lmunu2_curr))
-                        #print("final_curr: \n", final_curr)
-                        if mode == "lmunu":                          
-                            #print(np.einsum('bi, bj -> bij', final_curr, final_curr))
-                            lmunu += np.einsum('bi, bj -> bij', final_curr, final_curr)
-                            
-                            amplitude = np.einsum('bi,bi->b', np.sum(np.array(diagram.currents[-2]), axis=0), diagram.currents[-1][0])
-                            
-                            results += np.absolute(amplitude[:, None])**2
-                        else:
-                            amplitude = np.einsum('bi,bi->b', np.sum(np.array(diagram.currents[-2]), axis=0), diagram.currents[-1][0])
-                            
-                            results += np.absolute(amplitude[:, None])**2
-                            #results2 += np.absolute(np.einsum('ij,ij->i',final_curr,final_curr))
-                        # print(np.einsum('bi,bi->b', diagram.currents[-2][0], diagram.currents[-1][0]))
-                        # print(np.einsum('bi,bi->b', diagram.currents[-2][1], diagram.currents[-1][0]))
-                        # print(hel1, hel2, hel3, hel4, final_curr, np.absolute(final_curr[:, None])**2)
-                        # raise
-                        # print("Particles:\n", diagram.particles)
-                        # print("Currents:\n", diagram.currents)
-                        # print("Momentums:\n", diagram.momentum)
-        #print("L^munu =\n{}\n H_munu =\n{}".format(Lmunu,hmunu))
-        lmunu2 += np.einsum('bi, bj -> bij', lmunu2_curr, np.conj(lmunu2_curr))
-        #print(lmunu2)
+                final_curr = np.sum(np.array(diagram.currents[-2]), axis=0)
+                lmunu2_curr = np.sum(np.array(diagram.currents[3-1]), axis=0)
+                lmunu2 += np.einsum('bi, bj -> bij', lmunu2_curr, np.conj(lmunu2_curr))
+                if mode == "lmunu":                          
+                    lmunu += np.einsum('bi, bj -> bij', final_curr, final_curr)
+                    
+                    amplitude = np.einsum('bi,bi->b', np.sum(np.array(diagram.currents[-2]), axis=0), diagram.currents[-1][0])
+                    
+                    results += np.absolute(amplitude[:, None])**2
+                else:
+                    amplitude = np.einsum('bi,bi->b', np.sum(np.array(diagram.currents[-2]), axis=0), diagram.currents[-1][0])
+                    
+                    results += np.absolute(amplitude[:, None])**2
         LHamp = np.einsum('bij,bij->b', Lmunu,hmunu)
         print("LH Amp =\n{}".format(LHamp))
-        print("Diagram2 Amp =\n{}".format(results))
+        print("Diagram2 Amp =\n{}".format(np.einsum('bij,bij->b',lmunu2,hmunu)))
         exact_Res = 32*16*alpha**2*np.pi**2/(ecm)**4*(Dot(p1,p3)*Dot(p2,p4)+Dot(p1,p4)*Dot(p2,p3))
-        exact_Res_massive = 32*16*alpha**2*np.pi**2/(ecm)**4*(Dot(p1,p3)*Dot(p2,p4)+Dot(p1,p4)*Dot(p2,p3)+Me**2*Dot(p3,p4)+Mmu**2*Dot(p1,p2)+2*Me**2*Mmu**2)
         print("Exact:", exact_Res)
-        print("Exact 2:", exact_Res_massive)
         # exact_Res comes from 1/4 sum |M|^2 = 8e^4/s^2*(p1.p3*p2.p4+p1.p4*p2.p3) 
         #                          sum |M|^2 = 32e^4/s^2*(...)
         #                          sum |M|^2 = 32*16*pi^2*alpha^2/(ecm^4)*(...)
