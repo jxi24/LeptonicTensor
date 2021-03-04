@@ -349,19 +349,19 @@ class Spinor:
 
 
 def SpinorU(p, hel):
-    return Spinor(p, 1, 2*hel-1)
+    return Spinor(p, 1, hel)
 
 
 def SpinorUBar(p, hel):
-    return Spinor(p, 1, 2*hel-1, bar=-1)
+    return Spinor(p, 1, hel, bar=-1)
 
 
 def SpinorV(p, i, hel):
-    return Spinor(p, i, 1, -(2*hel-1))
+    return Spinor(p, i, 1, -hel)
 
 
 def SpinorVBar(p, i, hel):
-    return Spinor(p, i, 1, -(2*hel-1), bar=-1)
+    return Spinor(p, i, 1, -hel, bar=-1)
 
 
 class PolarizationVector:

@@ -110,7 +110,6 @@ class Propagator:
     def __init__(self, particle):
         self.particle = particle
         if self.particle.is_vector:
-            # print(self.particle.mass)
             # print(self.particle.massless())
             if self.particle.massless():
                 self.denominator = lambda p: (p[:, 0]*p[:, 0]-np.sum(p[:, 1:]*p[:, 1:], axis=-1))[:, np.newaxis, np.newaxis]
@@ -338,12 +337,13 @@ class Diagram:
                             pids0.remove(pids[1])
                             if len(pids0) == 1:
                                 current_part = Particle(cur, pids0[0])
+                                if(current_part.pid == 23):
+                                    continue
                                 self.particles[cur-1].add(current_part)
                                 self.momentum[cur-1] = self.momentum[cur1-1] + self.momentum[cur2-1]
                                 sorted_list, index = type_sort(part1, part2, current_part)
                                 ufo_vertex = model.vertex_map[key]
                                 batch = np.size(self.momentum[cur-1], axis=0)
-                                # print("batch: {}".format(batch))
                                 if 'VVV' in ufo_vertex.lorentz[0].name:
                                     mom, vert_indices = alph_sort(part1, part2, current_part, self.momentum[cur1-1], self.momentum[cur2-1], self.momentum[cur-1])
                                     vertex_info = Vertex(ufo_vertex, mom)
@@ -354,6 +354,10 @@ class Diagram:
 
                                 elif 'FFV' in ufo_vertex.lorentz[0].name:
                                     vertex_info = Vertex(ufo_vertex)
+                                    print(vertex_info.couplings)
+                                    print(vertex_info.lorentz_structures)
+                                    print(vertex_info.vertex)
+                                    # raise
                                     vertex = vertex_info.vertex
                                     vertex = np.tile(vertex, (batch,1,1,1))
                                     # print("vertex shape: ",np.shape(vertex))
@@ -371,11 +375,11 @@ class Diagram:
                                     j2 = self.currents[cur2-1][0]
  
                                 current = S_pi*np.einsum(sumidx, vertex, j1, j2)
-                                # print(S_pi, j1, j2)
-                                # print("Current: ", np.shape(current), current)
-                                if (cur+1 != 1 << (self.nparts - 1)):
+                                print(S_pi, j1, j2)
+                                print("Current: ", np.shape(current), current, cur)
+                                if (cur+1 != 1 << (self.nparts - 1)): # so if cur+1 != 8.
                                     prop = Propagator(current_part)(self.momentum[cur-1])
-                                    # print("Propagator: ", np.shape(prop), prop)
+                                    print("Propagator: ", np.shape(prop), prop)  # Correct for QED vertex.
                                     if current_part.is_fermion():
                                         current = np.einsum('bij,bj->bi', prop, current)
                                     elif current_part.is_antifermion():
@@ -385,11 +389,11 @@ class Diagram:
                                     else:
                                         current = prop*current
                                         
-                                    # print("New Current {}: {}".format((cur-1), current))
+                                    print("New Current {}: {}".format((cur), current))
                                 # print(current)
                                 # if(current_part.pid == 23):
                                 #     current *= 0
-
+                                # raise
                                 self.currents[cur-1].append(current)
                         icurrent += 1
 
@@ -493,8 +497,8 @@ def main(run_card):
     nparts = len(particles_yaml)
     Particle.max_id = 1 << (nparts - 1)
 
-    # for i in range(Particle.max_id << 1):
-    #     PARTMAP[i] = binary_conj(i, nparts)
+    for i in range(Particle.max_id << 1):
+        PARTMAP[i] = binary_conj(i, nparts)
 
     particles = []
     uid = 1
@@ -514,6 +518,8 @@ def main(run_card):
     results = np.zeros_like(ecm_array)
     hbarc2 = 0.38937966e9 
     alpha = 1/127.9
+    Me = 0.000511
+    Mmu = 0.105658 
 
     # TODO:
     # proper phase space and integration
@@ -560,20 +566,27 @@ def main(run_card):
         lmunu = np.zeros((nevents, 4, 4), dtype=np.complex128)
         hmunu = np.zeros((nevents, 4, 4), dtype=np.complex128)
         Lmunu = np.zeros((nevents, 4, 4), dtype=np.complex128)
+        
         p3 = mom[:,2,:]
         p4 = mom[:,3,:]
         p1 = mom[:,0,:]
         p2 = mom[:,1,:]
+        
         hmunu += np.einsum('bi, bj -> bij', p3, p4)
         hmunu += np.einsum('bi, bj -> bij', p4, p3)
         hmunu -= np.einsum('bij, bj -> bij', np.tile(ls.METRIC_TENSOR, (nevents, 1, 1)), Dot(p3,p4))
         hmunu *= 4*4*np.pi*alpha
+        
         Lmunu += np.einsum('bi, bj -> bij', p1, p2)
         Lmunu += np.einsum('bi, bj -> bij', p2, p1)
         Lmunu -= np.einsum('bij, bj -> bij', np.tile(ls.METRIC_TENSOR, (nevents, 1, 1)), Dot(p1,p2))
         Lmunu *= 4*4*np.pi*alpha/(ecm)**4
+        
         lmunu2 = np.zeros((nevents, 4, 4), dtype=np.complex128)
         lmunu2_curr = np.zeros((nevents, 4), dtype=np.complex128)
+        
+        # xsec_diffLR = 0
+        # xsec_diff
         for hel1 in range(2):
             for hel2 in range(2):
                 for hel3 in range(1):
@@ -585,7 +598,7 @@ def main(run_card):
 
                         final_curr = np.sum(np.array(diagram.currents[-2]), axis=0)
                         lmunu2_curr += np.sum(np.array(diagram.currents[3-1]), axis=0)
-                        print(lmunu2_curr, np.shape(lmunu2_curr))
+                        #print(lmunu2_curr, np.shape(lmunu2_curr))
                         #print("final_curr: \n", final_curr)
                         if mode == "lmunu":                          
                             #print(np.einsum('bi, bj -> bij', final_curr, final_curr))
@@ -603,18 +616,26 @@ def main(run_card):
                         # print(np.einsum('bi,bi->b', diagram.currents[-2][1], diagram.currents[-1][0]))
                         # print(hel1, hel2, hel3, hel4, final_curr, np.absolute(final_curr[:, None])**2)
                         # raise
-        print("L^munu =\n{}\n H_munu =\n{}".format(Lmunu,hmunu))
-        # # for i, diag_curr in enumerate(diagram.currents):
-        # #     print(i+1, " : \n", diag_curr)
+                        # print("Particles:\n", diagram.particles)
+                        # print("Currents:\n", diagram.currents)
+                        # print("Momentums:\n", diagram.momentum)
+        #print("L^munu =\n{}\n H_munu =\n{}".format(Lmunu,hmunu))
         lmunu2 += np.einsum('bi, bj -> bij', lmunu2_curr, np.conj(lmunu2_curr))
-        print(lmunu2)
+        #print(lmunu2)
         LHamp = np.einsum('bij,bij->b', Lmunu,hmunu)
-        #diag2_amp = np.einsum('bi,bi->b', np.sum(np.array(diagram.currents[-2]), axis=0), diagram.currents[-1][0])
-        #diag2_result = np.absolute(diag2_amp[:,None])**2
         print("LH Amp =\n{}".format(LHamp))
         print("Diagram2 Amp =\n{}".format(results))
         exact_Res = 32*16*alpha**2*np.pi**2/(ecm)**4*(Dot(p1,p3)*Dot(p2,p4)+Dot(p1,p4)*Dot(p2,p3))
+        exact_Res_massive = 32*16*alpha**2*np.pi**2/(ecm)**4*(Dot(p1,p3)*Dot(p2,p4)+Dot(p1,p4)*Dot(p2,p3)+Me**2*Dot(p3,p4)+Mmu**2*Dot(p1,p2)+2*Me**2*Mmu**2)
         print("Exact:", exact_Res)
+        print("Exact 2:", exact_Res_massive)
+        # exact_Res comes from 1/4 sum |M|^2 = 8e^4/s^2*(p1.p3*p2.p4+p1.p4*p2.p3) 
+        #                          sum |M|^2 = 32e^4/s^2*(...)
+        #                          sum |M|^2 = 32*16*pi^2*alpha^2/(ecm^4)*(...)
+        # LHamp = outer(Lmunu, hmunu) gives sum |M|^2.
+        
+        # Cross section comparison:
+        
         raise
         cos_theta = CosTheta(mom[:, 2, :])
         # s, t, u = Mandelstam(mom)
