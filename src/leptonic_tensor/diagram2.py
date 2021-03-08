@@ -27,9 +27,10 @@ def Dot(mom1, mom2):
 
 
 class Rambo:
-    def __init__(self, nin, nout):
+    def __init__(self, nin, nout, ptMin):
         self.nin = nin
         self.nout = nout
+        self.ptMin = ptMin
         pi2log = np.log(np.pi/2.)
         Z = np.zeros(nout+1)
         Z[2] = pi2log
@@ -40,10 +41,12 @@ class Rambo:
         self.Z_N = Z[nout]
 
     def cut(self, p):
-        cosThetaMax = 0.4
-        return np.where(abs(CosTheta(p[:, 2, :])) < cosThetaMax,
-                        np.ones(p.shape[0]),
-                        np.zeros(p.shape[0]))
+        wt = np.ones(p.shape[0])
+        for i in range(self.nin, self.nin+self.nout):
+            wt *= np.where(Pt(p[:, i, :]) < self.ptMin,
+                          np.zeros(p.shape[0]),
+                          np.ones(p.shape[0]))
+        return wt
 
     def __call__(self, p, rans):
         sump = np.zeros((rans.shape[0], 4))
@@ -486,6 +489,7 @@ def main(run_card):
 
     particles_yaml = parameters['Particles']
     mode = parameters['Mode']
+    ptMin = parameters['PtCut']
     nparts = len(particles_yaml)
     Particle.max_id = 1 << (nparts - 1)
 
@@ -541,7 +545,7 @@ def main(run_card):
     # plt.show()
 
     nout = 2
-    rambo = Rambo(2, nout)
+    rambo = Rambo(2, nout, ptMin)
     nevents = 5
     xsec = np.zeros_like(ecm_array)
     afb = np.zeros_like(ecm_array)

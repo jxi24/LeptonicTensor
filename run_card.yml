@@ -1,5 +1,6 @@
 Model: SM_NLO
 Mode: 
+PtCut: 1
 
 Particles:
     #           PID, direction (in / out)
