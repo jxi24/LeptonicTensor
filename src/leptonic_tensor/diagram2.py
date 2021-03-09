@@ -544,19 +544,24 @@ def main(run_card):
     # plt.yscale('log')
     # plt.show()
 
-    nout = 2
+
+    nout = nparts - 2
     rambo = Rambo(2, nout, ptMin)
-    nevents = 5
+    nevents = 1
     xsec = np.zeros_like(ecm_array)
     afb = np.zeros_like(ecm_array)
     for i, ecm in enumerate(ecm_array):
-        mom = np.array([[-ecm/2, 0, 0, -ecm/2],
-                        [-ecm/2, 0, 0, ecm/2],
-                        [0, 0, 0, 0],
-                        [0, 0, 0, 0]], dtype=np.float64)
+        in_mom = [[-ecm/2, 0, 0, -ecm/2],
+                  [-ecm/2, 0, 0, ecm/2]]
+        out_mom = [[0]*4 for i in range(nout)]
+        mom = np.array(in_mom + out_mom, dtype=np.float64)
         mom = np.tile(mom, (nevents, 1, 1))
         rans = np.random.random((nevents, 4*nout))
         weights = rambo(mom, rans)
+    
+        
+        # helicity_states = [bin(x)[2:].zfill(nparts-1) for x in range(2**(nparts-1))]
+        helicity_states = [bin(x)[2:].zfill(2) for x in range(2**(2))]
         
         results = np.zeros((nevents, 1), dtype=np.float64)
         results2 = np.zeros((nevents, 1), dtype=np.float64)
@@ -564,10 +569,10 @@ def main(run_card):
         hmunu = np.zeros((nevents, 4, 4), dtype=np.complex128)
         Lmunu = np.zeros((nevents, 4, 4), dtype=np.complex128)
         
-        p3 = mom[:,2,:]
-        p4 = mom[:,3,:]
         p1 = mom[:,0,:]
         p2 = mom[:,1,:]
+        p3 = mom[:,2,:]
+        p4 = mom[:,3,:]
         
         hmunu += np.einsum('bi, bj -> bij', p3, p4)
         hmunu += np.einsum('bi, bj -> bij', p4, p3)
@@ -580,40 +585,78 @@ def main(run_card):
         Lmunu *= 4*4*np.pi*alpha/(ecm)**4
         
         lmunu2 = np.zeros((nevents, 4, 4), dtype=np.complex128)
-        lmunu2_curr = np.zeros((nevents, 4), dtype=np.complex128)
         
         # xsec_diff
-        for hel1 in range(2):
-            for hel2 in range(2):
-                diagram = Diagram(particles, mom, [2*hel1-1, 2*hel2-1, 1, 1], mode)
+        
+        # e-mu- to e-mu- leptonic tensors.
+        lep_elec = np.zeros((nevents, 4, 4), dtype=np.complex128)
+        lep_mu = np.zeros((nevents, 4, 4), dtype=np.complex128)
+        t = Dot(p1-p3,p1-p3)
+        s = Dot(p1+p2,p1+p2)
+        u = Dot(p1-p4,p1-p4)
+        
+        lep_elec += np.einsum('bi, bj -> bij', p3, p1)
+        print(np.einsum('bi, bj -> bij', p3, p1))
+        lep_elec += np.einsum('bi, bj -> bij', p1, p3)
+        print(np.einsum('bi, bj -> bij', p1, p3))
+        lep_elec -= np.einsum('bij, bj -> bij', np.tile(ls.METRIC_TENSOR, (nevents, 1, 1)), Dot(p1,p3))
+        print(np.einsum('bij, bj -> bij', np.tile(ls.METRIC_TENSOR, (nevents, 1, 1)), Dot(p1,p3)))
+        lep_elec *= 2*4*np.pi*alpha/t
+        print(lep_elec, np.shape(lep_elec))
+        
+        lep_mu += np.einsum('bi, bj -> bij', p4, p2)
+        lep_mu += np.einsum('bi, bj -> bij', p2, p4)
+        lep_mu -= np.einsum('bij, bj -> bij', np.tile(ls.METRIC_TENSOR, (nevents, 1, 1)), Dot(p2,p4))
+        lep_mu *= 2*4*np.pi*alpha/t
+        print(lep_mu, np.shape(lep_mu))
+        
+        LHamp_emu = np.einsum('bij, bij -> b', lep_elec, lep_mu)
+        print(LHamp_emu)
+        LHamp_emu2 = np.einsum('bij, bji -> b', lep_elec, lep_mu)
+        print(LHamp_emu2)
+        
+        
+        for state in helicity_states:
+            # helicities = [2*int(state[i])-1 for i in range(nparts-1)]
+            hel1, hel2 = int(state[0]), int(state[1])
+            diagram = Diagram(particles, mom, [2*hel1-1, 2*hel2-1, 1, 1], mode)
                 
-                for j in range(2, nparts):
-                    diagram.generate_currents(j, nparts)
+            for j in range(2, nparts):
+                diagram.generate_currents(j, nparts)
 
-                final_curr = np.sum(np.array(diagram.currents[-2]), axis=0)
-                lmunu2_curr = np.sum(np.array(diagram.currents[3-1]), axis=0)
-                lmunu2 += np.einsum('bi, bj -> bij', lmunu2_curr, np.conj(lmunu2_curr))
-                if mode == "lmunu":                          
-                    lmunu += np.einsum('bi, bj -> bij', final_curr, final_curr)
+            final_curr = np.sum(np.array(diagram.currents[-2]), axis=0)
+            lmunu2_curr = np.sum(np.array(diagram.currents[4]), axis=0)
+            lmunu2 += np.einsum('bi, bj -> bij', lmunu2_curr, np.conj(lmunu2_curr))
+            if mode == "lmunu":                          
+                lmunu += np.einsum('bi, bj -> bij', final_curr, final_curr)
+                
+                amplitude = np.einsum('bi,bi->b', np.sum(np.array(diagram.currents[-2]), axis=0), diagram.currents[-1][0])
                     
-                    amplitude = np.einsum('bi,bi->b', np.sum(np.array(diagram.currents[-2]), axis=0), diagram.currents[-1][0])
+                results += np.absolute(amplitude[:, None])**2
+            else:
+                amplitude = np.einsum('bi,bi->b', np.sum(np.array(diagram.currents[-2]), axis=0), diagram.currents[-1][0])
                     
-                    results += np.absolute(amplitude[:, None])**2
-                else:
-                    amplitude = np.einsum('bi,bi->b', np.sum(np.array(diagram.currents[-2]), axis=0), diagram.currents[-1][0])
-                    
-                    results += np.absolute(amplitude[:, None])**2
-        LHamp = np.einsum('bij,bij->b', Lmunu,hmunu)
-        print("LH Amp =\n{}".format(LHamp))
-        print("Diagram2 Amp =\n{}".format(np.einsum('bij,bij->b',lmunu2,hmunu)))
-        exact_Res = 32*16*alpha**2*np.pi**2/(ecm)**4*(Dot(p1,p3)*Dot(p2,p4)+Dot(p1,p4)*Dot(p2,p3))
-        print("Exact:", exact_Res)
+                results += np.absolute(amplitude[:, None])**2
+        # LHamp = np.einsum('bij,bij->b', Lmunu,hmunu)
+        # print("LH Amp =\n{}".format(LHamp))
+        
+        # print("Diagram2 Amp =\n{}".format(np.einsum('bij,bij->b',lmunu,hmunu)))
+        # exact_Res = 32*16*alpha**2*np.pi**2/(ecm)**4*(Dot(p1,p3)*Dot(p2,p4)+Dot(p1,p4)*Dot(p2,p3))
+        # print("Exact:", exact_Res)
         # exact_Res comes from 1/4 sum |M|^2 = 8e^4/s^2*(p1.p3*p2.p4+p1.p4*p2.p3) 
         #                          sum |M|^2 = 32e^4/s^2*(...)
         #                          sum |M|^2 = 32*16*pi^2*alpha^2/(ecm^4)*(...)
         # LHamp = outer(Lmunu, hmunu) gives sum |M|^2.
         
-        # Cross section comparison:
+        # Comparison to results.
+        
+        print("Diagram2 lmunu =\n{}".format(lmunu2))
+        print("Diagram2 Amp =\n{}".format(results))
+        print("LHamp =\n{}".format(LHamp_emu))
+        exact_Res = 2*16*alpha**2*np.pi**2*(s**2+u**2)/t**2  # This is 1/4 sum |M|^2.
+        exact_Res2 = 8*16*alpha**2*np.pi**2*(Dot(p3,p4)*Dot(p1,p2)+Dot(p3,p2)*Dot(p1,p4))/t**2
+        print("Exact:", exact_Res)
+        print("Exact 2:", exact_Res2)
         
         raise
         cos_theta = CosTheta(mom[:, 2, :])
