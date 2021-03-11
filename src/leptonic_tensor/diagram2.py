@@ -274,11 +274,11 @@ class Diagram:
             self.particles[(1 << i)-1].add(particles[i])
             self.momentum[(1 << i)-1] = mom[:, i, :]
             if particles[i].is_fermion():
-                self.currents[(1 << i)-1] = [ls.SpinorU(mom[:, i, :], hel[i]).u]
+                self.currents[(1 << i)-1] = [ls.SpinorUBar(mom[:, i, :], hel[i]).u]
                 # print(np.shape(self.currents[(1 << i)-1]))
                 # print("ext current: spinor {}: {}".format(i, ls.Spinor(mom[:, i, :], hel[i]).u))
             elif particles[i].is_antifermion():
-                self.currents[(1 << i)-1] = [ls.SpinorUBar(mom[:, i, :], hel[i]).u]
+                self.currents[(1 << i)-1] = [ls.SpinorV(mom[:, i, :], hel[i]).u]
                 # print("ext current: spinor bar {}: {}".format(i, ls.Spinor(mom[:, i, :], hel[i], bar=-1).u))
             elif particles[i].is_vector():
                 self.currents[(1 << i)-1] = [ls.PolarizationVector(mom[:, i, :], hel[i]).epsilon]
@@ -554,6 +554,8 @@ def main(run_card):
         in_mom = [[-ecm/2, 0, 0, -ecm/2],
                   [-ecm/2, 0, 0, ecm/2]]
         out_mom = [[0]*4 for i in range(nout)]
+        # in_mom = [[-ecm/2, 0, 0, -ecm/2]]
+        # out_mom = [[-ecm/2, 0, 0, ecm/2]]
         mom = np.array(in_mom + out_mom, dtype=np.float64)
         mom = np.tile(mom, (nevents, 1, 1))
         rans = np.random.random((nevents, 4*nout))
@@ -610,7 +612,7 @@ def main(run_card):
         lep_mu *= 2*4*np.pi*alpha/t
         print(lep_mu, np.shape(lep_mu))
         
-        LHamp_emu = np.einsum('bij, bij -> b', lep_elec, lep_mu)
+        LHamp_emu = np.einsum('bij, bij -> b', lep_elec, np.conj(lep_mu))
         print(LHamp_emu)
         LHamp_emu2 = np.einsum('bij, bji -> b', lep_elec, lep_mu)
         print(LHamp_emu2)
@@ -619,16 +621,22 @@ def main(run_card):
         for state in helicity_states:
             # helicities = [2*int(state[i])-1 for i in range(nparts-1)]
             hel1, hel2 = int(state[0]), int(state[1])
-            diagram = Diagram(particles, mom, [2*hel1-1, 2*hel2-1, 1, 1], mode)
+            particles[2].id = 2
+            new_particles = [particles[0], particles[2], Particle(4, 22)]
+            new_mom = np.array([mom[:,0,:], mom[:,2,:], mom[:,1,:]+mom[:,3,:]])
+            print(np.transpose(new_mom,(1,0,2)))
+            new_mom = np.transpose(new_mom,(1,0,2))
+            print(np.shape(new_mom))
+            diagram = Diagram(new_particles, new_mom, [2*hel1-1, 2*hel2-1, 1], mode)
                 
-            for j in range(2, nparts):
-                diagram.generate_currents(j, nparts)
+            for j in range(2, nparts-1):
+                diagram.generate_currents(j, nparts-1)
 
             final_curr = np.sum(np.array(diagram.currents[-2]), axis=0)
             lmunu2_curr = np.sum(np.array(diagram.currents[4]), axis=0)
             lmunu2 += np.einsum('bi, bj -> bij', lmunu2_curr, np.conj(lmunu2_curr))
             if mode == "lmunu":                          
-                lmunu += np.einsum('bi, bj -> bij', final_curr, final_curr)
+                lmunu += np.einsum('bi, bj -> bij', final_curr, np.conj(final_curr))
                 
                 amplitude = np.einsum('bi,bi->b', np.sum(np.array(diagram.currents[-2]), axis=0), diagram.currents[-1][0])
                     
@@ -650,7 +658,8 @@ def main(run_card):
         
         # Comparison to results.
         
-        print("Diagram2 lmunu =\n{}".format(lmunu2))
+        print("Diagram2 lmunu =\n{}".format(lmunu2), np.shape(lmunu2))
+        print(np.einsum('bij,bij->b', lmunu, lep_mu))
         print("Diagram2 Amp =\n{}".format(results))
         print("LHamp =\n{}".format(LHamp_emu))
         exact_Res = 2*16*alpha**2*np.pi**2*(s**2+u**2)/t**2  # This is 1/4 sum |M|^2.
