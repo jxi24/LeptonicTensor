@@ -356,12 +356,12 @@ def SpinorUBar(p, hel):
     return Spinor(p, 1, hel, bar=-1)
 
 
-def SpinorV(p, i, hel):
-    return Spinor(p, i, 1, -hel)
+def SpinorV(p, hel):
+    return Spinor(p, 1, -hel)
 
 
-def SpinorVBar(p, i, hel):
-    return Spinor(p, i, 1, -hel, bar=-1)
+def SpinorVBar(p, hel):
+    return Spinor(p, 1, -hel, bar=-1)
 
 
 class PolarizationVector:
