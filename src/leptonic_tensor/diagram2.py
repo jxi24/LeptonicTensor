@@ -5,173 +5,16 @@ import lorentz_structures as ls
 import models
 import model_class as mc
 import matplotlib.pyplot as plt
+from particle import Particle
+from propagator import Propagator
+from rambo import Rambo
+from utils import Pt, CosTheta, Dot, ctz, next_permutation, set_bits
 
 
 all_models = models.discover_models()
 model = mc.Model('Models.SM_NLO', all_models)
 
-PARTMAP = {}
 
-
-def Pt(mom):
-    return np.sqrt(mom[:, 1]**2 + mom[:, 2]**2)
-
-
-def CosTheta(mom):
-    return np.cos(np.arctan2(Pt(mom), mom[:, 3]))
-
-
-def Dot(mom1, mom2):
-    return (mom1[:, 0]*mom2[:, 0])[:, None]-np.sum(mom1[:, 1:]*mom2[:, 1:],
-                                                   axis=-1, keepdims=True)
-
-
-class Rambo:
-    def __init__(self, nin, nout, ptMin):
-        self.nin = nin
-        self.nout = nout
-        self.ptMin = ptMin
-        pi2log = np.log(np.pi/2.)
-        Z = np.zeros(nout+1)
-        Z[2] = pi2log
-        for k in range(3, nout+1):
-            Z[k] = Z[k-1]+pi2log-2.*np.log(k-2)
-        for k in range(3, nout+1):
-            Z[k] -= np.log(k-1)
-        self.Z_N = Z[nout]
-
-    def cut(self, p):
-        wt = np.ones(p.shape[0])
-        for i in range(self.nin, self.nin+self.nout):
-            wt *= np.where(Pt(p[:, i, :]) < self.ptMin,
-                          np.zeros(p.shape[0]),
-                          np.ones(p.shape[0]))
-        return wt
-
-    def __call__(self, p, rans):
-        sump = np.zeros((rans.shape[0], 4))
-        for i in range(self.nin):
-            sump += p[:, i, :]
-        ET = np.sqrt(Dot(sump, sump))
-
-        R = np.zeros((rans.shape[0], 4))
-        for i in range(self.nin, self.nin+self.nout):
-            ctheta = 2*rans[:, 4*(i-self.nin)] - 1
-            stheta = np.sqrt(1-ctheta**2)
-            phi = 2*np.pi*rans[:, 1 + 4*(i-self.nin)]
-            Q = -np.log(rans[:, 2+4*(i-self.nin)]*rans[:, 3+4*(i-self.nin)])
-            p[:, i, :] = np.array([Q, Q*stheta*np.sin(phi), Q*stheta*np.cos(phi), Q*ctheta]).T
-            R += p[:, i, :]
-
-        RMAS = np.sqrt(Dot(R, R))
-        B = -R[:, 1:]/RMAS
-        G = R[:, 0, None]/RMAS
-        A = 1.0/(1.0+G)
-        X = ET/RMAS
-
-        for i in range(self.nin, self.nin+self.nout):
-            e = p[:, i, 0, None]
-            BQ = np.sum(B*p[:, i, 1:], axis=-1, keepdims=True)
-            term1 = (G*e)+BQ
-            term2 = B*(e+A*BQ)
-            p[:, i, 0, None] = X*term1
-            p[:, i, 1:] = X*(p[:, i, 1:] + term2)
-
-
-        wgt = np.exp((2*self.nout-4)*np.log(ET)+self.Z_N)/(2*np.pi)**(self.nout*3 - 4)
-        return self.cut(p)[:, None]*wgt
-
-
-def binary_conj(x, size):
-    vals = []
-    for y in bin(x)[2:].zfill(size):
-        if y == '1':
-            vals.append('0')
-        else:
-            vals.append('1')
-    return int(''.join(vals), 2)
-
-
-def ctz(inp):
-    return (inp & -inp).bit_length() - 1
-
-
-def next_permutation(inp):
-    t = inp | (inp - 1)
-    return (t+1) | (((~t & -~t) - 1) >> (ctz(inp) + 1))
-
-
-def set_bits(inp, setbits, size):
-    iset = 0
-    for i in range(size):
-        if(inp & (1 << i)):
-            setbits[iset] = (inp & (1 << i))
-            iset += 1
-
-
-class Propagator:
-    def __init__(self, particle):
-        self.particle = particle
-        if self.particle.is_vector:
-            # print(self.particle.massless())
-            if self.particle.massless():
-                self.denominator = lambda p: (p[:, 0]*p[:, 0]-np.sum(p[:, 1:]*p[:, 1:], axis=-1))[:, np.newaxis, np.newaxis]
-                self.numerator = lambda p: -1j*ls.METRIC_TENSOR[np.newaxis, ...]
-            else:
-                mass = 91.81 #particle.mass
-                width = 2.54 #particle.width
-                self.denominator = lambda p: (p[:, 0]*p[:, 0]-np.sum(p[:, 1:]*p[:, 1:], axis=-1)-mass**2-1j*mass*width)[:, np.newaxis, np.newaxis]
-                self.numerator = lambda p: \
-                    -1j*ls.METRIC_TENSOR[np.newaxis, ...] + 1j*np.einsum('bi,bj->bij', p, p)/mass**2
-
-    def __call__(self, p):
-        return self.numerator(p)/self.denominator(p)
-            
-    def __str__(self):
-        return "Prop{}".format(self.particle)
-
-    def __repr__(self):
-        return str(self)
-
-    def __eq__(self, other):
-        return self.particle == other.particle
-
-
-class Current:
-    def __init__(self, current=''):
-        self.current = current
-
-    def eps(self, p):
-        self.current = 'eps({})'.format(p)
-        return Current(self.current)
-
-    def add_vertex(self, v, j1, j2):
-        self.current = self.current + '+' + '*'.join([str(v), str(j1), str(j2)])
-        return Current(self.current)
-
-    def finalize(self):
-        self.current = '(' + self.current + ')'
-        return Current(self.current)
-
-    def vertex(self, v, j1, j2):
-        self.current = '(' + self.current + '+' + '*'.join([str(v), str(j1), str(j2)]) + ')'
-        return Current(self.current)
-
-    def prop(self, prop):
-        self.current = '*'.join([prop, self.current])
-
-    def add(self, j):
-        print('Add', self.current, j)
-        self.current = '+'.join([str(self.current), str(j)])
-        print('Add end', self.current)
-        return Current(self.current)
-
-    def __str__(self):
-        return self.current
-
-    def __repr__(self):
-        return str(self)
-    
 class Vertex:
     def __init__(self, ufo_vertex, mom=None):
         self.lorentz_structures = ufo_vertex.lorentz
@@ -181,7 +24,6 @@ class Vertex:
         self.coupling_matrix = self._cp_matrix()
         self.lorentz_vector = self._lorentz_vector()
         self.vertex = self._get_vertex()
-        # print(ufo_vertex.name, self.coupling_matrix, self.couplings)
         
     def _cp_matrix(self):
         cp_matrix = np.zeros((self.n_lorentz, self.n_lorentz), dtype=np.complex128)
@@ -230,7 +72,6 @@ class Vertex:
         return lorentz_vector
     def _get_vertex(self):                            
         vertex = np.sum(np.einsum("ij,jklm->iklm", self.coupling_matrix, self.lorentz_vector), axis=0)
-        # print(vertex)
         return vertex
 
 def type_sort(part1, part2, current_part):
@@ -269,21 +110,15 @@ class Diagram:
         self.currents = [[] for _ in range(Particle.max_id)]
         self.momentum = [[] for _ in range(Particle.max_id)]
         self.mode = mode
-        # print(len(self.particles))
         for i in range(len(particles)):
             self.particles[(1 << i)-1].add(particles[i])
             self.momentum[(1 << i)-1] = mom[:, i, :]
             if particles[i].is_fermion():
                 self.currents[(1 << i)-1] = [ls.SpinorV(mom[:, i, :], hel[i]).u]
-                # print(np.shape(self.currents[(1 << i)-1]))
-                # print("ext current: spinor {}: {}".format(i, ls.Spinor(mom[:, i, :], hel[i]).u))
             elif particles[i].is_antifermion():
                 self.currents[(1 << i)-1] = [ls.SpinorUBar(mom[:, i, :], hel[i]).u]
-                # print("ext current: spinor bar {}: {}".format(i, ls.Spinor(mom[:, i, :], hel[i], bar=-1).u))
             elif particles[i].is_vector():
                 self.currents[(1 << i)-1] = [ls.PolarizationVector(mom[:, i, :], hel[i]).epsilon]
-                #print("ext current: epsilon")
-        # print(self.currents)
 
     def symmetry_factor(self, part1, part2, size):
         pi1, pi2 = np.zeros(size, dtype=np.int32), np.zeros(size, dtype=np.int32)
@@ -321,7 +156,6 @@ class Diagram:
             cur1 = 0
             for i in range(size):
                 cur1 += setbits[i]*((idx >> i) & 1)
-            # print('\t- {:07b} {:07b}'.format(cur1, cur ^ cur1))
             cur2 = cur ^ cur1
             if(self.particles[cur1-1] is not None
                     and self.particles[cur2-1] is not None):
@@ -351,16 +185,12 @@ class Diagram:
                                     mom, vert_indices = alph_sort(part1, part2, current_part, self.momentum[cur1-1], self.momentum[cur2-1], self.momentum[cur-1])
                                     vertex_info = Vertex(ufo_vertex, mom)
                                     vertex = vertex_info.vertex
-                                    # vertex = np.tile(vertex, (batch,1,1,1))
                                     S_pi = 1
                                     sumidx = 'agm, b{}, b{} -> b{}'.format(vert_indices[part1.id], vert_indices[part2.id], vert_indices[current_part.id])
 
                                 elif 'FFV' in ufo_vertex.lorentz[0].name:
                                     vertex_info = Vertex(ufo_vertex)
-                                    # raise
                                     vertex = vertex_info.vertex
-                                    # vertex = np.tile(vertex, (batch,1,1,1))
-                                    # print("vertex shape: ",np.shape(vertex))
                                     S_pi = self.symmetry_factor(part1, part2, size)
                                     sumidx = 'mij, b{}, b{} -> b{}'.format(index[part1.id], index[part2.id], index[cur])
                                     
@@ -384,10 +214,6 @@ class Diagram:
                                         current = np.einsum('bij,bj->bi', prop, current)
                                     else:
                                         current = prop*current
-                                print(current_part.id, current)
-                                # if(current_part.pid == 23):
-                                #     current *= 0
-                                # raise
                                 self.currents[cur-1].append(current)
                         icurrent += 1
 
@@ -398,88 +224,11 @@ class Diagram:
         setbits = np.zeros(nparts-1, dtype=np.int32)
         self.nparts = nparts
         while val < (1 << (nparts - 1)):
-            # print('Permutation: {:07b}'.format(val))
             set_bits(val, setbits, nparts-1)
             for iset in range(1, m):
                 self.sub_current(val, iset, m, setbits, nparts-1)
 
             val = next_permutation(val)
-
-class Particle:
-    max_id = 0
-
-    def __init__(self, i, pid):
-        self.id = i
-        self.pid = pid
-        part_info = model.particle_map[pid]
-        try:
-            self.mass = model.parameter_map[part_info.mass]
-        except KeyError:
-            self.mass = 0.0
-        try:
-            self.width = model.parameter_map[part_info.width]
-        except KeyError:
-            self.width = 0.0
-        self.charge = part_info.charge
-        self.spin = part_info.spin
-
-    def __str__(self):
-        sid = self.get_id()
-        return f'({self.id}, {self.pid})'
-    
-    def conjugate(self):
-        pid = self.pid
-        part = model.particle_map[pid]
-        if part.name != part.antiname:
-            pid = -self.pid
-        return Particle(self.id, pid)
-
-    def __repr__(self):
-        return str(self)
-
-    def __lt__(self, other):
-        sid = self.get_id()
-        oid = other.get_id()
-        if sid < oid:
-            return True
-        elif oid < sid:
-            return False
-        return self.pid < other.pid
-
-    def __hash__(self):
-        return self.pid
-
-    def get_id(self):
-        if self.id >= Particle.max_id:
-            return PARTMAP[self.id]
-        return self.id
-
-    def __eq__(self, other):
-        return (self.get_id() == other.get_id()
-                and abs(self.pid) == abs(other.pid))
-
-    def is_fermion(self):
-        if 0 < self.pid < 20:
-            return True
-        return False
-
-    def is_antifermion(self):
-        if -20 < self.pid < 0:
-            return True
-        return False
-
-    def is_vector(self):
-        if 20 < self.pid and self.pid != 25:
-            return True
-        return False
-
-    def is_scalar(self):
-        if self.pid == 25:
-            return True
-        return False
-
-    def massless(self):
-        return self.mass == 0.0
 
 
 def HadronicTensor(p1, p2, gl2, gr2):
@@ -497,10 +246,9 @@ def main(run_card):
     mode = parameters['Mode']
     ptMin = parameters['PtCut']
     nparts = len(particles_yaml)
+    Particle.model = model
+    Propagator.model = model
     Particle.max_id = 1 << (nparts - 1)
-
-    for i in range(Particle.max_id << 1):
-        PARTMAP[i] = binary_conj(i, nparts)
 
     particles = []
     uid = 1
@@ -523,37 +271,9 @@ def main(run_card):
     Me = 0.000511
     Mmu = 0.105658 
 
-    # TODO:
-    # proper phase space and integration
-    # Average over initial state helicities and sum over final state
-    # mom = ecm_array[:,np.newaxis,np.newaxis]/2*np.array(
-    #             [[[-1, 0, 0, -1],
-    #              [-1, 0, 0, 1],
-    #              [1, sintheta*np.cos(phi),
-    #               sintheta*np.sin(phi), costheta],
-    #              [1, -sintheta*np.cos(phi),
-    #               -sintheta*np.sin(phi), -costheta]]])
-
-    # for hel1 in range(2):
-    #     for hel2 in range(2):
-    #         for hel3 in range(2):
-    #             for hel4 in range(2):
-    #                 diagram = Diagram(particles, mom, [2*hel1-1, 2*hel2-1, 2*hel3-1, 2*hel4-1])
- 
-    #                 for i in range(2, nparts):
-    #                     diagram.generate_currents(i, nparts)
-
-    #                 final_curr = np.einsum('bi,bi->b', np.sum(np.array(diagram.currents[-2]), axis=0), diagram.currents[-1][0])
-    #                 results += np.absolute(final_curr)**2/(2*ecm_array**2)/4*hbarc2
-
-    # plt.plot(ecm_array, results)
-    # plt.yscale('log')
-    # plt.show()
-
-
     nout = nparts - 2
     rambo = Rambo(2, nout, ptMin)
-    nevents = 3
+    nevents = 1
     xsec = np.zeros_like(ecm_array)
     afb = np.zeros_like(ecm_array)
     for i, ecm in enumerate(ecm_array):
@@ -638,6 +358,7 @@ def main(run_card):
 
             final_curr = np.sum(np.array(diagram.currents[-2]), axis=0)
             lmunu2_curr = np.sum(np.array(diagram.currents[4]), axis=0)
+            print('curr = ', lmunu2_curr)
             lmunu2 += np.einsum('bi, bj -> bij', lmunu2_curr, np.conj(lmunu2_curr))
             if mode == "lmunu":                          
                 lmunu += np.einsum('bi, bj -> bij', final_curr, np.conj(final_curr))
