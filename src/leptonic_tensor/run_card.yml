@@ -1,11 +1,19 @@
 Model: SM_NLO
 Mode: lmunu
 PtCut: 1
+EnergyRange: [20, 200, 51]
+NEvents: 10000
 
 Particles:
     #           PID, direction (in / out)
+    # e-mu- to e-mu-
     - Particle: [11, in]
     - Particle: [13, in]
     - Particle: [11, out]
     - Particle: [13, out]
+    
+    # e+e- to mu+mu-
+    # - Particle: [11, in]
+    # - Particle: [-11, in]
+    # - Particle: [13, out]
     # - Particle: [-13, out]
