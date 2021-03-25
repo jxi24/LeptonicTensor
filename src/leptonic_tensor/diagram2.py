@@ -218,6 +218,8 @@ class Diagram:
                                     else:
                                         current = prop*current
                                 self.currents[cur-1].append(current)
+                                # if current_part.pid == 23:
+                                #     print(current_part.pid, cur, cur1, cur2)
                         icurrent += 1
 
             idx = next_permutation(idx)
@@ -282,6 +284,8 @@ def main(run_card):
     xsec_err = np.zeros_like(ecm_array)
     xsec = np.zeros_like(ecm_array)
     afb = np.zeros_like(ecm_array)
+    amplitudes = []
+    cosines = []
     for i, ecm in enumerate(ecm_array):
         in_mom = [[-ecm/2, 0, 0, -ecm/2],
                   [-ecm/2, 0, 0, ecm/2]]
@@ -313,7 +317,7 @@ def main(run_card):
         # Ensure that s + t + u = \sum_{i} m^2_i = 0 (for massless case)
         # print(s, t, u, s+t+u)
         
-        # e-mu- to e-mu-
+        # e-mu- to e-mu-. This only includes photon, no Z.
         hmunu = HadronicTensor(p2, p4, 4*np.pi*alpha, 4*np.pi*alpha)
         
         # e+e- to mu+mu-
@@ -329,10 +333,10 @@ def main(run_card):
             hel1, hel2 = int(state[0]), int(state[1])
             
             # e-mu- to e-mu-
-            # diagram = Diagram(particles, mom, [2*hel1-1, 1, 2*hel2-1, 1], mode)
+            diagram = Diagram(particles, mom, [2*hel1-1, 1, 2*hel2-1, 1], mode)
             
             # e+e- to mu+mu-
-            diagram = Diagram(particles, mom, [2*hel1-1, 2*hel2-1, 1, 1], mode)
+            # diagram = Diagram(particles, mom, [2*hel1-1, 2*hel2-1, 1, 1], mode)
                 
             for j in range(2, nparts):
                 diagram.generate_currents(j, nparts)
@@ -353,10 +357,10 @@ def main(run_card):
                 amplitude = np.einsum('bi,bi->b', np.sum(np.array(diagram.currents[-2]), axis=0), diagram.currents[-1][0])
                     
                 results += np.absolute(amplitude[:, None])**2
-            else:
-                amplitude = np.einsum('bi,bi->b', np.sum(np.array(diagram.currents[-2]), axis=0), diagram.currents[-1][0])
+            # else:
+            #     amplitude = np.einsum('bi,bi->b', np.sum(np.array(diagram.currents[-2]), axis=0), diagram.currents[-1][0])
                     
-                results += np.absolute(amplitude[:, None])**2
+            #     results += np.absolute(amplitude[:, None])**2
         
         # exact_Res = 2*16*alpha**2*np.pi**2*(s**2+u**2)/t**2  # This is 1/4 sum |M|^2. (i.e. already includes Ecm)
         # exact_Res comes from 1/4 sum |M|^2 = 8e^4/s^2*(p1.p3*p2.p4+p1.p4*p2.p3) 
@@ -370,6 +374,7 @@ def main(run_card):
         # print("Diagram2 lmunu*hmunu/4 =\n{}".format(np.einsum('bij,bij->b', lmunu2, hmunu)/4))
         # print("Diagram2 Amp =\n{}".format(results))
         # print("Exact:", exact_Res)
+        # print("difference: ", (exact_Res[0]+np.einsum('bij,bij->b', lmunu2, hmunu)[0]/4))
         
         # Own plots.
         # raise
@@ -386,38 +391,34 @@ def main(run_card):
         flux = 2*ecm**2
         # amp2 = amp2/flux/spinavg*hbarc2*weights
         amp2 = amp2/spinavg  # When plotting amp vs costheta, do not include flux only spinavg.
-        # print(np.shape(amp2))
-        # print(weights, np.shape(weights), np.shape(amp2))
-        # amp2 = np.einsum("b,bi->b", amp2, weights)*hbarc2
-        # print(np.shape(amp2))
+        
+        # nbins = 100
+        
+        # # e-mu- to e-mu-
+        # cos_theta_exact = np.linspace(-0.99, 0.99, nbins+1)
+        
+        # # e+e- to mu+mu-
+        # # cos_theta_exact = np.linspace(-1, 1, nbins+1)
+        
+        # M_emu = 2*(16*np.pi**2*alpha**2)*(4+(1+cos_theta_exact)**2)/(1-cos_theta_exact)**2
+        # # M_eemumu = 16*np.pi**2*alpha**2*(1+cos_theta_exact**2)
+        # # # print(np.shape(cos_theta), np.shape(amp2[0]/nevents/(2/nbins)))
+        
+        # plot_M_cos(M_emu, amp2, cos_theta, cos_theta_exact, nevents, ecm, nbins)
+    
         # raise
         
-        # print(ecm, np.mean(amp2), np.std(amp2)/np.sqrt(nevents), exact_emu)
-        nfwd = np.sum(amp2[cos_theta > 0])/nevents
-        nbck = np.sum(amp2[cos_theta < 0])/nevents
-        afb[i] = (nfwd - nbck)/np.mean(amp2)
-        # # print(nfwd, nbck, afb[i])
-        nbins = 100
-        
+        if ecm in [20.0, 60.0, 100.0, 140.0, 180.0, 200.0]:
+            nbins = 100
+            cos_theta_exact = np.linspace(-0.99, 0.99, nbins+1)
+            M_emu = 2*(16*np.pi**2*alpha**2)*(4+(1+cos_theta_exact)**2)/(1-cos_theta_exact)**2
+            amplitudes.append([M_emu, amp2])
+            cosines.append([cos_theta_exact, cos_theta])
+            
+        ######### CROSS SECTION CALCULATION #########
         # Cut on cos(theta).
-        # amp2 = np.where(cos_theta < 0.90, amp2, 0)
+        amp2 = np.where(cos_theta < 0.95, amp2, 0)
         
-        # print(np.shape(amp2))
-        # M vs costheta
-        
-        # e-mu- to e-mu-
-        cos_theta_exact = np.linspace(-0.99, 0.99, nbins+1)
-        
-        # e+e- to mu+mu-
-        # cos_theta_exact = np.linspace(-1, 1, nbins+1)
-        
-        M_emu = 2*(16*np.pi**2*alpha**2)*(1+(1+cos_theta_exact)**2)/(1-cos_theta_exact)**2
-        # M_eemumu = 16*np.pi**2*alpha**2*(1+cos_theta_exact**2)
-        # # print(np.shape(cos_theta), np.shape(amp2[0]/nevents/(2/nbins)))
-        
-        plot_M_cos(M_emu, amp2, cos_theta, cos_theta_exact, nevents, nbins, ecm)
-        
-        raise
         
         results = np.einsum("b,bi->b", amp2, weights)/flux*hbarc2
         
@@ -425,6 +426,12 @@ def main(run_card):
         
         xsec_err[i] = np.std(results)/np.sqrt(nevents)
         xsec[i] = np.mean(results)
+        
+        # print(ecm, np.mean(results), np.std(results)/np.sqrt(nevents), exact_emu)
+        # nfwd = np.sum(results[cos_theta > 0])/nevents
+        # nbck = np.sum(results[cos_theta < 0])/nevents
+        # afb[i] = (nfwd - nbck)/np.mean(results)
+        # # print(nfwd, nbck, afb[i])
         
         # print("ana: ", xsec_ana[i])
         # print("compt: ", xsec[i])
@@ -464,28 +471,41 @@ def main(run_card):
     
     # exact_emu = alpha**2/(8*ecm**2)*5.33*10**10*hbarc2
 
-    fig, (ax1, ax2) = plt.subplots(2, 1)
+    figM, ((ax11, ax12), (ax21, ax22), (ax31, ax32)) = plt.subplots(3,2, figsize=(11.0, 11.0), dpi=200)
+    
+    ax11 = plot_M_six(cosines, amplitudes, nevents, 100, 0, 20.0, ax11)
+    ax12 = plot_M_six(cosines, amplitudes, nevents, 100, 1, 60.0, ax12)
+    ax21 = plot_M_six(cosines, amplitudes, nevents, 100, 2, 100.0, ax21)
+    ax22 = plot_M_six(cosines, amplitudes, nevents, 100, 3, 140.0, ax22)
+    ax31 = plot_M_six(cosines, amplitudes, nevents, 100, 4, 180.0, ax31)
+    ax32 = plot_M_six(cosines, amplitudes, nevents, 100, 5, 200.0, ax32)
+    
+    figM.suptitle(r'$e^-p^+\rightarrow e^-p^+$', fontsize=18)
 
-    ax1.plot(ecm_array, xsec_ana)
-    ax1.plot(ecm_array, xsec)
+    fig, (ax1, ax2) = plt.subplots(2, 1, figsize=(8.5, 6.0), dpi=200, sharex=True)
+
+    ax1.plot(ecm_array, xsec_ana, color='mediumpurple')
+    ax1.errorbar(ecm_array, xsec, yerr=xsec_err, color='seagreen', marker='|')
 
     # plt.plot(ecm_array, afb)
     ax1.semilogy()
     
-    ax1.set_ylabel(r"$\displaystyle \sigma \qquad [pb]$")
-    ax1.set_xlabel(r"$\displaystyle \sqrt{s} \qquad [GeV]$")
+    ax1.set_ylabel(r"$\displaystyle \sigma$  [pb]")
+    ax1.set_xlabel(r"$\displaystyle \sqrt{s}$  [GeV]")
+    ax1.legend(['Analytic', 'Data'])
     
-    ax2.plot(ecm_array, xsec_err)
+    ax2.plot(ecm_array, xsec_err, color='dodgerblue')
     ax2.set_ylabel(r"Uncertainty({})  [pb]".format(r"$\sigma$"))
-    ax2.set_xlabel(r"$\displaystyle \sqrt{s} \qquad [GeV]$")
+    ax2.set_xlabel(r"$\displaystyle \sqrt{s}$  [GeV]")
+    ax2.semilogy()
+    
+    # ax3.plot(ecm_array, afb)
     
     plt.show()
 
 
-def plot_M_cos(M, amp2, cos_theta, cos_theta_exact, nevents, nbins, ecm):
-    fig, ax = plt.subplots()
-        
-    ax.hist(cos_theta, weights=amp2/nevents/(2/nbins), bins=np.linspace(-1,1,nbins+1))
+def plot_M_six(cosines, amplitudes, nevents, nbins, i, ecm, ax):
+    ax.hist(cosines[i][1], weights=amplitudes[i][1]/nevents/(2/nbins), bins=np.linspace(-1,1,nbins+1), color='firebrick')
         
     ax.semilogy()
     ax.set_ylabel(r'$\displaystyle \frac{1}{4}\sum|\mathcal{M}|^2$')
@@ -493,7 +513,7 @@ def plot_M_cos(M, amp2, cos_theta, cos_theta_exact, nevents, nbins, ecm):
         
             
     textstr = '\n'.join((
-        r'$e^-\mu^-\rightarrow e^-\mu^-$',
+        # r'$e^-p^+\rightarrow e^-p^+$',
         r'$\sqrt{s}=%.2f$ GeV' % (ecm, ),
         r'events = {}'.format(nevents) ))
 
@@ -504,9 +524,38 @@ def plot_M_cos(M, amp2, cos_theta, cos_theta_exact, nevents, nbins, ecm):
     ax.text(0.05, 0.95, textstr, transform=ax.transAxes, fontsize=14,
     verticalalignment='top', bbox=props)
         
-    ax.plot(cos_theta_exact, M)
+    ax.plot(cosines[i][0], amplitudes[i][0], color='goldenrod', linewidth=3)
+    
+    ax.legend(['Data', 'Analytic'], loc=(0.65,0.75))
+    
+    return ax
+
+def plot_M_cos(M, amp2, cos_theta, cos_theta_exact, nevents, ecm, nbins):
+    fig, ax = plt.subplots()
+        
+    ax.hist(cos_theta, weights=amp2/nevents/(2/nbins), bins=np.linspace(-1,1,nbins+1), color='firebrick')
+        
+    ax.semilogy()
+    ax.set_ylabel(r'$\displaystyle \frac{1}{4}\sum|\mathcal{M}|^2$')
+    ax.set_xlabel(r'$\displaystyle \cos(\theta)$')
+        
+            
+    textstr = '\n'.join((
+        r'$e^-p^+ \rightarrow e^-p^+$',
+        r'$\sqrt{s}=%.2f$ GeV' % (ecm, ),
+        r'events = {}'.format(nevents) ))
+
+    # these are matplotlib.patch.Patch properties
+    props = dict(boxstyle='round', facecolor='wheat', alpha=0.5)
+
+    # place a text box in upper left in axes coords
+    ax.text(0.05, 0.95, textstr, transform=ax.transAxes, fontsize=14,
+    verticalalignment='top', bbox=props)
+        
+    ax.plot(cos_theta_exact, M, color='goldenrod', linewidth=3)
     # # plt.plot(cos_theta_exact, M_eemumu)
     plt.show()
+    # return fig, ax
 
 if __name__ == '__main__':
     np.random.seed(123456789)
