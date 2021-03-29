@@ -2,7 +2,7 @@ Model: SM_NLO
 Mode:
 PtCut: 1
 EnergyRange: [20, 200, 190]
-NEvents: 100000
+NEvents: 10000
 
 Particles:
     #           PID, direction (in / out)

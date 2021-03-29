@@ -289,9 +289,11 @@ def main(run_card):
     xsec_ana = np.zeros_like(ecm_array)
     xsec_err = np.zeros_like(ecm_array)
     xsec = np.zeros_like(ecm_array)
-    afb = np.zeros_like(ecm_array)
+    # afb = np.zeros_like(ecm_array)
     amplitudes = []
     cosines = []
+    nbins = 200
+    ecm_vals = [20.0, 60.0, 100.0, 140.0, 180.0, 200.0]
     theta_cut = 0.95
     for i, ecm in enumerate(ecm_array):
         in_mom = [[-ecm/2, 0, 0, -ecm/2],
@@ -396,8 +398,6 @@ def main(run_card):
         flux = 2*ecm**2
         amp2 = amp2/spinavg  # When plotting amp vs costheta, do not include flux only spinavg.
         
-        nbins = 200
-        
         # # e-mu- to e-mu-
         cos_theta_exact = np.linspace(-1, 0.99, nbins+1)
         
@@ -406,28 +406,29 @@ def main(run_card):
         
         ######### AMPLITUDES #########
         
-        def amp_emu(cos_theta_exact):
-            amp_emu = 2 * (16*np.pi**2*alpha**2) * (4+(1+cos_theta_exact)**2) / (1-cos_theta_exact)**2
-            return amp_emu
+        def amp_eemumu(cos_theta_exact):
+            amp_eemumu = 16*np.pi**2*alpha**2*(1+cos_theta_exact**2)
+            return amp_eemumu
         
-        # # # M_eemumu = 16*np.pi**2*alpha**2*(1+cos_theta_exact**2)
+        def amp_ep(cos_theta_exact):
+            amp_ep = 2 * (16*np.pi**2*alpha**2) * (4+(1+cos_theta_exact)**2) / (1-cos_theta_exact)**2
+            return amp_ep
         
-        amp_plot(cos_theta, cos_theta_exact, amp2, amp_emu, ecm, nevents, nbins)
+        def amp_nue_n(ecm, cos_theta_exact):
+            amp_nue_n = (np.pi**2)*(alpha**2)/(1-MW**2/MZ**2)**2
+            amp_nue_n /= 1/4*(1-cos_theta_exact)**2 + (MW/ecm)**2*(1-cos_theta_exact) + (MW/ecm)**4 + ((MW/ecm)**2)*((WW/ecm)**2)
+            amp_nue_n *= (1+cos_theta_exact)**2 - 1/4*(ecm/MW)**2*(1-cos_theta_exact)**2*(3+cos_theta_exact) - ecm**4/(8*MW**2)*(1+cos_theta_exact)**2*(5+cos_theta_exact)*(3-cos_theta_exact)
+            return amp_nue_n
         
-        raise
+        # amp_plot(cos_theta, cos_theta_exact, amp2, amp_ep, ecm, nevents, nbins)
         
-        # nue n to e- p+
-        # M_nue_n = (np.pi**2)*(alpha**2)/(1-MW**2/MZ**2)**2
-        # M_nue_n /= 1/4*(1-cos_theta_exact)**2 + (MW/ecm)**2*(1-cos_theta_exact) + (MW/ecm)**4 + ((MW/ecm)**2)*((WW/ecm)**2)
-        # M_nue_n *= (1+cos_theta_exact)**2 - 1/4*(ecm/MW)**2*(1-cos_theta_exact)**2*(3+cos_theta_exact) - ecm**4/(8*MW**2)*(1+cos_theta_exact)**2*(5+cos_theta_exact)*(3-cos_theta_exact)
+        # raise
         
         
-        # if ecm in [20.0, 60.0, 100.0, 140.0, 180.0, 200.0]:
-        #     nbins = 100
-        #     cos_theta_exact = np.linspace(-0.99, 0.99, nbins+1)
-        #     M_emu = 2*(16*np.pi**2*alpha**2)*(4+(1+cos_theta_exact)**2)/(1-cos_theta_exact)**2
-        #     amplitudes.append([M_emu, amp2])
-        #     cosines.append([cos_theta_exact, cos_theta])
+        if ecm in ecm_vals:
+            M = amp_ep(cos_theta_exact)
+            amplitudes.append([M, amp2])
+            cosines.append([cos_theta_exact, cos_theta])
             
         ######### CROSS SECTION CALCULATION #########
         amp2 = np.where(cos_theta < theta_cut, amp2, 0)
@@ -435,7 +436,7 @@ def main(run_card):
         
         results = np.einsum("b,bi->b", amp2, weights)/flux*hbarc2
         
-        xsec_ana[i] = 1/(32*np.pi*ecm**2)*integrate.quad(amp_emu, -1, theta_cut)[0]*hbarc2
+        xsec_ana[i] = 1/(32*np.pi*ecm**2)*integrate.quad(amp_ep, -1, theta_cut)[0]*hbarc2
         
         xsec_err[i] = np.std(results)/np.sqrt(nevents)
         xsec[i] = np.mean(results)
@@ -476,29 +477,16 @@ def main(run_card):
         # # plt.show()
         # # raise
         # xsec[i] = np.mean(results)
-
-    # Plot of cross sections.
     
-    # exact_eemumu = 4*np.pi*alpha**2*hbarc2/(3*ecm**2) # This is the (exact, total) cross section of e+e- to mu+mu-.
-
-    # figM, ((ax11, ax12), (ax21, ax22), (ax31, ax32)) = plt.subplots(3,2, figsize=(11.0, 11.0), dpi=200)
-    
-    # ax11 = plot_M_six(cosines, amplitudes, nevents, 100, 0, 20.0, ax11)
-    # ax12 = plot_M_six(cosines, amplitudes, nevents, 100, 1, 60.0, ax12)
-    # ax21 = plot_M_six(cosines, amplitudes, nevents, 100, 2, 100.0, ax21)
-    # ax22 = plot_M_six(cosines, amplitudes, nevents, 100, 3, 140.0, ax22)
-    # ax31 = plot_M_six(cosines, amplitudes, nevents, 100, 4, 180.0, ax31)
-    # ax32 = plot_M_six(cosines, amplitudes, nevents, 100, 5, 200.0, ax32)
-    
+    amp_plots(cosines, amplitudes, ecm_vals, nevents, nbins, name='amps.pdf')
 
     xsec_plot(ecm_array, xsec, xsec_ana, xsec_err, r'$\sigma(e^-p^+ \rightarrow e^-p^+)$ (pb)' , theta_cut, nevents)
     
 
-
 def xsec_plot(ecm_array, xsec, xsec_ana, xsec_err, process, theta_cut, nevents, name='xsec.pdf'):
 
     fig, ax = plt.subplots(2,1, gridspec_kw={'height_ratios': [3, 1], 'hspace': 0.0})
-    ax.flatten()
+    ax = ax.flatten()
     for ax_i in ax:
         ax_i.tick_params(axis='both', direction='in', reset=True, labelsize=15,
                    which='both')
@@ -535,6 +523,43 @@ def xsec_plot(ecm_array, xsec, xsec_ana, xsec_err, process, theta_cut, nevents, 
             verticalalignment='top', bbox=props)
     
     plt.savefig(name, bbox_inches='tight')
+
+def amp_plots(cosines, amplitudes, ecm_vals, nevents, nbins, name='amps.pdf'):
+    
+    fig, ax = plt.subplots(3, 2, tight_layout=True, figsize=(11, 11))
+    ax = ax.flatten()
+    for i, axi in enumerate(ax):
+        axi.tick_params(axis='both', direction='in', reset=True, labelsize=15,
+                        which='both')
+        axi.tick_params(which='major', length=7)
+        axi.tick_params(which='minor', length=4)
+        axi.xaxis.set_minor_locator(AutoMinorLocator())
+        axi.yaxis.set_minor_locator(AutoMinorLocator())
+        axi.set_xlim(-1, 1)
+        axi.set_xlabel(r'$\cos(\theta)$', fontsize=12, labelpad=1)
+        axi.set_ylabel(r'$\frac{1}{4}\sum|\mathcal{M}|^2$', fontsize=12, labelpad=1)
+        axi.semilogy()
+        textstr = '\n'.join((
+            r'$\sqrt{s}=%.2f$ GeV' % (ecm_vals[i], ),
+            r'events = {}'.format(nevents) ))
+        histogram = Histogram([-1,1], bins=nbins)
+        for j, cosine in enumerate(cosines[i][1]):
+            histogram.fill(cosine, weight=amplitudes[i][1][j]/nevents)
+        axi, weights_true = histogram.plot(axi, color='firebrick', label='Data')
+    
+        # these are matplotlib.patch.Patch properties
+        props = dict(boxstyle='round', facecolor='wheat', alpha=0.5)
+
+        # place a text box in upper left in axes coords
+        axi.text(0.05, 0.93, textstr, transform=axi.transAxes, fontsize=14,
+                   verticalalignment='top', bbox=props)
+    
+        axi.plot(cosines[i][0], amplitudes[i][0], color='goldenrod', linewidth=2, label='Analytic')
+        axi.legend(frameon=False, fontsize=12, borderpad=0.2, ncol=2,
+                     columnspacing=0.5)
+        
+    plt.savefig(name, bbox_inches='tight')
+
     
 def amp_plot(cos_theta, cos_theta_exact, amp2, amp_func, ecm, nevents, nbins=100):
     hist_ep = Histogram([-1, 1], bins=nbins)
@@ -556,7 +581,7 @@ def amp_plot(cos_theta, cos_theta_exact, amp2, amp_func, ecm, nevents, nbins=100
     ax[0].set_ylabel(r'$\frac{1}{4}\sum|\mathcal{M}|^2$', fontsize=12, labelpad=1)
     ax[0].semilogy()
     ax[0], weights_true = hist_ep.plot(ax[0], color='firebrick', label='Data')
-    print(np.shape(weights_true), weights_true[0])
+    # print(np.shape(weights_true), weights_true[0])
     
     textstr = '\n'.join((
     # r'$e^-p^+ \rightarrow e^-p^+$',
