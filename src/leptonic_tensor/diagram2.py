@@ -6,7 +6,10 @@ import lorentz_structures as ls
 import models
 import model_class as mc
 import matplotlib.pyplot as plt
+from matplotlib.ticker import AutoMinorLocator
 plt.rcParams.update({"text.usetex": True,})
+
+from histogram import Histogram
 
 from particle import Particle
 from propagator import Propagator
@@ -276,6 +279,9 @@ def main(run_card):
     alpha = 1/127.9
     # Me = 0.000511
     # Mmu = 0.105658 
+    MW = model.parameter_map['MW']
+    MZ = model.parameter_map['MZ']
+    WW = model.parameter_map['WW']
 
     nout = nparts - 2
     rambo = Rambo(2, nout, ptMin)
@@ -286,6 +292,7 @@ def main(run_card):
     afb = np.zeros_like(ecm_array)
     amplitudes = []
     cosines = []
+    theta_cut = 0.95
     for i, ecm in enumerate(ecm_array):
         in_mom = [[-ecm/2, 0, 0, -ecm/2],
                   [-ecm/2, 0, 0, ecm/2]]
@@ -376,7 +383,6 @@ def main(run_card):
         # print("Exact:", exact_Res)
         # print("difference: ", (exact_Res[0]+np.einsum('bij,bij->b', lmunu2, hmunu)[0]/4))
         
-        # Own plots.
         # raise
         
         # e-mu- to e-mu-
@@ -386,43 +392,95 @@ def main(run_card):
         # cos_theta = CosTheta(mom[:, 2, :])
         
         amp2 = -np.real(np.einsum('bij,bij->b', lmunu2, hmunu)) # These are diag2 results.
-        # print(np.shape(amp2))
         spinavg = 4
         flux = 2*ecm**2
-        # amp2 = amp2/flux/spinavg*hbarc2*weights
         amp2 = amp2/spinavg  # When plotting amp vs costheta, do not include flux only spinavg.
         
-        # nbins = 100
+        nbins = 200
         
         # # e-mu- to e-mu-
-        # cos_theta_exact = np.linspace(-0.99, 0.99, nbins+1)
+        cos_theta_exact = np.linspace(-1, 0.99, nbins+1)
         
-        # # e+e- to mu+mu-
-        # # cos_theta_exact = np.linspace(-1, 1, nbins+1)
+        # # # e+e- to mu+mu-
+        # # # cos_theta_exact = np.linspace(-1, 1, nbins+1)
         
-        # M_emu = 2*(16*np.pi**2*alpha**2)*(4+(1+cos_theta_exact)**2)/(1-cos_theta_exact)**2
-        # # M_eemumu = 16*np.pi**2*alpha**2*(1+cos_theta_exact**2)
-        # # # print(np.shape(cos_theta), np.shape(amp2[0]/nevents/(2/nbins)))
+        M_emu = 2 * (16*np.pi**2*alpha**2) * (4+(1+cos_theta_exact)**2) / (1-cos_theta_exact)**2
+        # # # M_eemumu = 16*np.pi**2*alpha**2*(1+cos_theta_exact**2)
+        # # # # print(np.shape(cos_theta), np.shape(amp2[0]/nevents/(2/nbins)))
         
-        # plot_M_cos(M_emu, amp2, cos_theta, cos_theta_exact, nevents, ecm, nbins)
+        # # plot_M_cos(M_emu, amp2, cos_theta, cos_theta_exact, nevents, ecm, nbins)
     
-        # raise
+        print(np.shape(cos_theta), np.shape(amp2))
+    
+        hist_ep = Histogram([-1, 1], bins=nbins)
+        for i, cosine in enumerate(cos_theta):
+            hist_ep.fill(cosine, weight=amp2[i]/nevents)
+    
+        hist_ep = hist_ep.normalize()
+    
+        fig, ax = plt.subplots(2, 1, gridspec_kw={'height_ratios': [3, 1], 'hspace':0.0})
+        ax.flatten()
+        for axi in ax:
+            axi.tick_params(axis='both', direction='in', reset=True, labelsize=15,
+                          which='both')
+            axi.tick_params(which='major', length=7)
+            axi.tick_params(which='minor', length=4)
+            axi.xaxis.set_minor_locator(AutoMinorLocator())
+            axi.yaxis.set_minor_locator(AutoMinorLocator())
+            axi.set_xlim(-1, 1)
+        ax[1].set_xlabel(r'$\cos(\theta)$', fontsize=12, labelpad=1)
+        ax[1].set_ylabel(r'Data/Ana.', fontsize=12, labelpad=1)
+        ax[0].set_ylabel(r'$\frac{1}{4}\sum|\mathcal{M}|^2$', fontsize=12, labelpad=1)
+        ax[0].semilogy()
+        ax[0], weights_true = hist_ep.plot(ax[0], color='firebrick', label='Data')
+        # ax.show()
+    
+        textstr = '\n'.join((
+        # r'$e^-p^+ \rightarrow e^-p^+$',
+        r'$\sqrt{s}=%.2f$ GeV' % (ecm, ),
+        r'events = {}'.format(nevents) ))
+
+        # these are matplotlib.patch.Patch properties
+        props = dict(boxstyle='round', facecolor='wheat', alpha=0.5)
+
+        # place a text box in upper left in axes coords
+        ax[0].text(0.05, 0.95, textstr, transform=ax[0].transAxes, fontsize=14,
+                verticalalignment='top', bbox=props)
         
-        if ecm in [20.0, 60.0, 100.0, 140.0, 180.0, 200.0]:
-            nbins = 100
-            cos_theta_exact = np.linspace(-0.99, 0.99, nbins+1)
-            M_emu = 2*(16*np.pi**2*alpha**2)*(4+(1+cos_theta_exact)**2)/(1-cos_theta_exact)**2
-            amplitudes.append([M_emu, amp2])
-            cosines.append([cos_theta_exact, cos_theta])
+        ax[0].plot(cos_theta_exact, M_emu, color='goldenrod', linewidth=2, label='Analytic')
+        ax[0].legend(frameon=False, fontsize=12, borderpad=0.2, ncol=2,
+                      columnspacing=0.5)
+        
+        ax[1].semilogy()
+        ax[1].plot(cos_theta_exact, np.divide(weights_true, M_emu))
+        ax[1].axhline(y=1.0, color='black', linestyle='-')
+        
+        plt.savefig('amp.pdf', bbox_inches='tight')
+        # plt.show()
+        
+        raise
+        
+        # nue n to e- p+
+        # M_nue_n = (np.pi**2)*(alpha**2)/(1-MW**2/MZ**2)**2
+        # M_nue_n /= 1/4*(1-cos_theta_exact)**2 + (MW/ecm)**2*(1-cos_theta_exact) + (MW/ecm)**4 + ((MW/ecm)**2)*((WW/ecm)**2)
+        # M_nue_n *= (1+cos_theta_exact)**2 - 1/4*(ecm/MW)**2*(1-cos_theta_exact)**2*(3+cos_theta_exact) - ecm**4/(8*MW**2)*(1+cos_theta_exact)**2*(5+cos_theta_exact)*(3-cos_theta_exact)
+        
+        
+        # if ecm in [20.0, 60.0, 100.0, 140.0, 180.0, 200.0]:
+        #     nbins = 100
+        #     cos_theta_exact = np.linspace(-0.99, 0.99, nbins+1)
+        #     M_emu = 2*(16*np.pi**2*alpha**2)*(4+(1+cos_theta_exact)**2)/(1-cos_theta_exact)**2
+        #     amplitudes.append([M_emu, amp2])
+        #     cosines.append([cos_theta_exact, cos_theta])
             
         ######### CROSS SECTION CALCULATION #########
         # Cut on cos(theta).
-        amp2 = np.where(cos_theta < 0.95, amp2, 0)
+        amp2 = np.where(cos_theta < theta_cut, amp2, 0)
         
         
         results = np.einsum("b,bi->b", amp2, weights)/flux*hbarc2
         
-        xsec_ana[i] = integrate.quad(lambda ctheta:alpha**2/(8*ecm**2)*(1+(1+ctheta)**2)/(1-ctheta)**2*(2*np.pi), -1, 0.99)[0]*hbarc2
+        xsec_ana[i] = 1/(32*np.pi*ecm**2)*integrate.quad(lambda ctheta:2*(16*np.pi**2*alpha**2)*(4+(1+ctheta)**2)/(1-ctheta)**2, -1, theta_cut)[0]*hbarc2
         
         xsec_err[i] = np.std(results)/np.sqrt(nevents)
         xsec[i] = np.mean(results)
@@ -467,42 +525,61 @@ def main(run_card):
     # Plot of cross sections.
     
     # exact_eemumu = 4*np.pi*alpha**2*hbarc2/(3*ecm**2) # This is the (exact, total) cross section of e+e- to mu+mu-.
-    
-    
-    # exact_emu = alpha**2/(8*ecm**2)*5.33*10**10*hbarc2
 
-    figM, ((ax11, ax12), (ax21, ax22), (ax31, ax32)) = plt.subplots(3,2, figsize=(11.0, 11.0), dpi=200)
+    # figM, ((ax11, ax12), (ax21, ax22), (ax31, ax32)) = plt.subplots(3,2, figsize=(11.0, 11.0), dpi=200)
     
-    ax11 = plot_M_six(cosines, amplitudes, nevents, 100, 0, 20.0, ax11)
-    ax12 = plot_M_six(cosines, amplitudes, nevents, 100, 1, 60.0, ax12)
-    ax21 = plot_M_six(cosines, amplitudes, nevents, 100, 2, 100.0, ax21)
-    ax22 = plot_M_six(cosines, amplitudes, nevents, 100, 3, 140.0, ax22)
-    ax31 = plot_M_six(cosines, amplitudes, nevents, 100, 4, 180.0, ax31)
-    ax32 = plot_M_six(cosines, amplitudes, nevents, 100, 5, 200.0, ax32)
+    # ax11 = plot_M_six(cosines, amplitudes, nevents, 100, 0, 20.0, ax11)
+    # ax12 = plot_M_six(cosines, amplitudes, nevents, 100, 1, 60.0, ax12)
+    # ax21 = plot_M_six(cosines, amplitudes, nevents, 100, 2, 100.0, ax21)
+    # ax22 = plot_M_six(cosines, amplitudes, nevents, 100, 3, 140.0, ax22)
+    # ax31 = plot_M_six(cosines, amplitudes, nevents, 100, 4, 180.0, ax31)
+    # ax32 = plot_M_six(cosines, amplitudes, nevents, 100, 5, 200.0, ax32)
     
-    figM.suptitle(r'$e^-p^+\rightarrow e^-p^+$', fontsize=18)
 
-    fig, (ax1, ax2) = plt.subplots(2, 1, figsize=(8.5, 6.0), dpi=200, sharex=True)
+    xsec_plot(ecm_array, xsec, xsec_ana, xsec_err, r'$\sigma(e^-p^+ \rightarrow e^-p^+)$ (pb)' , theta_cut, nevents)
+    
 
-    ax1.plot(ecm_array, xsec_ana, color='mediumpurple')
-    ax1.errorbar(ecm_array, xsec, yerr=xsec_err, color='seagreen', marker='|')
 
-    # plt.plot(ecm_array, afb)
-    ax1.semilogy()
-    
-    ax1.set_ylabel(r"$\displaystyle \sigma$  [pb]")
-    ax1.set_xlabel(r"$\displaystyle \sqrt{s}$  [GeV]")
-    ax1.legend(['Analytic', 'Data'])
-    
-    ax2.plot(ecm_array, xsec_err, color='dodgerblue')
-    ax2.set_ylabel(r"Uncertainty({})  [pb]".format(r"$\sigma$"))
-    ax2.set_xlabel(r"$\displaystyle \sqrt{s}$  [GeV]")
-    ax2.semilogy()
-    
-    # ax3.plot(ecm_array, afb)
-    
-    plt.show()
+def xsec_plot(ecm_array, xsec, xsec_ana, xsec_err, process, theta_cut, nevents, name='xsec.pdf'):
 
+    fig, ax = plt.subplots(2,1, gridspec_kw={'height_ratios': [3, 1], 'hspace': 0.0})
+    ax.flatten()
+    for ax_i in ax:
+        ax_i.tick_params(axis='both', direction='in', reset=True, labelsize=15,
+                   which='both')
+        ax_i.tick_params(which='major', length=7)
+        ax_i.tick_params(which='minor', length=4)
+        ax_i.xaxis.set_minor_locator(AutoMinorLocator())
+        ax_i.yaxis.set_minor_locator(AutoMinorLocator())
+        ax_i.set_xlim(10, 210)
+        
+    ax[0].set_ylabel(process, fontsize=12, labelpad=1)
+    ax[0].semilogy()
+    ax[0].plot(ecm_array, xsec_ana, color='mediumpurple', label='Analytic')
+    ax[0].errorbar(ecm_array, xsec, yerr=xsec_err, color='seagreen', marker='|', label='Data')
+    ax[0].legend(frameon=False, fontsize=12, borderpad=0.2, ncol=2,
+          columnspacing=0.5)
+    
+    error_xsec = np.divide(xsec, xsec_ana)
+    
+    ax[1].set_xlabel(r'$\sqrt{s}$ (GeV)', fontsize=12, labelpad=1)
+    ax[1].set_ylabel(r"Data/Ana.", fontsize=12, labelpad=1)
+    ax[1].set_ylim(0.75,1.25)
+    ax[1].plot(ecm_array, error_xsec, color='dodgerblue')
+    ax[1].axhline(y=1.0, color='black', linestyle='-')
+    
+    textstr = '\n'.join((
+    r'$\cos(\theta)<%.2f$' % (theta_cut, ),
+    r'events = {}'.format(nevents) ))
+
+    # these are matplotlib.patch.Patch properties
+    props = dict(boxstyle='round', facecolor='antiquewhite', alpha=0.5)
+
+    # place a text box in upper left in axes coords
+    ax[0].text(0.68, 0.75, textstr, transform=ax[0].transAxes, fontsize=14,
+            verticalalignment='top', bbox=props)
+    
+    plt.savefig(name, bbox_inches='tight')
 
 def plot_M_six(cosines, amplitudes, nevents, nbins, i, ecm, ax):
     ax.hist(cosines[i][1], weights=amplitudes[i][1]/nevents/(2/nbins), bins=np.linspace(-1,1,nbins+1), color='firebrick')
