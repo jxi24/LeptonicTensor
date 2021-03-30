@@ -7,12 +7,13 @@ class Propagator:
     def __init__(self, particle):
         self.particle = particle
         if self.particle.is_vector:
-            if self.particle.massless():
+            if self.particle.pid == 22:
+            # if self.particle.massless():
                 self.denominator = lambda p: (p[:, 0]*p[:, 0]-np.sum(p[:, 1:]*p[:, 1:], axis=-1))[:, np.newaxis, np.newaxis]
                 self.numerator = lambda p: -1j*ls.METRIC_TENSOR[np.newaxis, ...]
-            else:
-                mass = 91.81 #particle.mass
-                width = 2.54 #particle.width
+            elif self.particle.pid == 24:
+                mass = 79.82435974619784 # particle.mass # 91.81
+                width = 2.085 # particle.width # 2.54
                 self.denominator = lambda p: (p[:, 0]*p[:, 0]-np.sum(p[:, 1:]*p[:, 1:], axis=-1)-mass**2-1j*mass*width)[:, np.newaxis, np.newaxis]
                 self.numerator = lambda p: \
                     -1j*ls.METRIC_TENSOR[np.newaxis, ...] + 1j*np.einsum('bi,bj->bij', p, p)/mass**2

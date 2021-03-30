@@ -2,7 +2,7 @@ Model: SM_NLO
 Mode:
 PtCut: 1
 EnergyRange: [20, 200, 190]
-NEvents: 10000
+NEvents: 100000
 
 Particles:
     #           PID, direction (in / out)
@@ -21,8 +21,15 @@ Particles:
     ######## THESIS PROCESSES ########
     
     # PROCESS 1:
-    # e-p to e-p (treated as e-mu+ to e-mu+)
-    - Particle: [11, in]
-    - Particle: [-13, in]
+    # e-p+ to e-p+ (treated as e-mu+ to e-mu+)
+    # - Particle: [11, in]
+    # - Particle: [-13, in]
+    # - Particle: [11, out]
+    # - Particle: [-13, out]
+    
+    # PROCESS 2:
+    # nu_e n to e-p+ (treated as nu_e nu_mu_bar to e- mu+)
+    - Particle: [12, in]
+    - Particle: [-14, in]
     - Particle: [11, out]
     - Particle: [-13, out]

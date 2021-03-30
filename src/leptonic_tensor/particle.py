@@ -19,7 +19,7 @@ class Particle:
 
     def __str__(self):
         sid = self.get_id()
-        return f'({self.id}, {self.pid})'
+        return f'({self.id}, {self.pid}, {self.mass}, {self.width})'
     
     def conjugate(self):
         pid = self.pid
