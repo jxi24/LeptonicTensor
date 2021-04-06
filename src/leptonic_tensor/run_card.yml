@@ -23,13 +23,37 @@ Particles:
     # PROCESS 1:
     # e-p+ to e-p+ (treated as e-mu+ to e-mu+)
     # - Particle: [11, in]
-    # - Particle: [-13, in]
+    # - Particle: [13, in]
     # - Particle: [11, out]
-    # - Particle: [-13, out]
+    # - Particle: [13, out]
     
     # PROCESS 2:
-    # nu_e n to e-p+ (treated as nu_e nu_mu_bar to e- mu+)
+    # nu_e nu_mu_bar to e- mu+ 
     - Particle: [12, in]
     - Particle: [-14, in]
     - Particle: [11, out]
     - Particle: [-13, out]
+    
+    # PROCESS 3:
+    # nu_e p+ to nu_e p+ (treated as nu_e mu- to nu_e mu-)
+    # - Particle: [12, in]
+    # - Particle: [13, in]
+    # - Particle: [12, out]
+    # - Particle: [13, out]
+    
+    # PROCESS 4:
+    # e-p+ to e-p+gamma (treated as e-mu- to e-mu- gamma)
+    # - Particle: [11, in]
+    # - Particle: [13, in]
+    # - Particle: [11, out]
+    # - Particle: [22, out]
+    # - Particle: [13, out]
+    
+    # PROCESS 5:
+    # e-p+ to e-p+gamma (treated as e-mu+ to e-mu+)
+    # - Particle: [11, in]
+    # - Particle: [-13, in]
+    # - Particle: [11, out]
+    # - Particle: [-13, out]
+    # - Particle: [11, out]
+    # - Particle: [-11, out]

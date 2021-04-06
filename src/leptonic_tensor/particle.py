@@ -18,7 +18,7 @@ class Particle:
         self.spin = part_info.spin
 
     def __str__(self):
-        sid = self.get_id()
+        # sid = self.get_id()
         return f'({self.id}, {self.pid}, {self.mass}, {self.width})'
     
     def conjugate(self):
@@ -63,7 +63,7 @@ class Particle:
         return False
 
     def is_vector(self):
-        if 20 < self.pid and self.pid != 25:
+        if (20 < self.pid or self.pid < -20) and self.pid != 25:
             return True
         return False
 
