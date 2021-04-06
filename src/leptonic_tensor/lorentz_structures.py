@@ -1,5 +1,6 @@
 import numpy as np
 import lorentz_tensor as lt
+from utils import Dot
 
 METRIC_TENSOR = np.diag([1, -1, -1, -1])
 IDENTITY = np.diag([1, 1, 1, 1])
@@ -367,63 +368,75 @@ def SpinorVBar(p, hel):
 class PolarizationVector:
     def __init__(self, p, hel=0, conj=1):
         self.conj = conj
-        self.k = np.array([1, 1, 0, 0])
+        batch = np.size(p, axis=0)
+        self.k = np.tile(np.array([1, 1, 0, 0]), (batch, 1))
         self.kp = WeylSpinor(1, self.k)
         self.km = WeylSpinor(-1, self.k)
 
-        mass2 = p[0]**2 - np.sum(p[1:]**2)
-        if mass2 == 0:
+        # mass2 = p[:,0]**2 - np.sum(p[:,1:]**2)
+        # if mass2.all() == 0:
+        mass2 = Dot(p, p)    
+        if mass2.all() <= 1e-8:
             if hel == 0:
                 raise RuntimeError("Invalid helicity for massless particle")
 
-            self.epsilon = (self._ep(p) if hel == 1
-                            else self._em(p))
+            self.epsilon = (self._ep(p, batch) if hel == 1
+                            else self._em(p, batch))
         else:
             if hel == 0:
-                self.epsilon = self._eml(p)
+                self.epsilon = self._eml(p, batch)
             elif hel == 1:
-                self.epsilon = self._emp(p)
+                self.epsilon = self._emp(p, batch)
             elif hel == -1:
-                self.epsilon = self._emm(p)
+                self.epsilon = self._emm(p, batch)
 
     @staticmethod
-    def _vt(a, b):
-        eps = np.zeros(4, dtype=np.complex)
-        eps[0] = a.mu[0]*b.mu[0]+a.mu[1]*b.mu[1]
-        eps[3] = a.mu[0]*b.mu[0]-a.mu[1]*b.mu[1]
-        eps[1] = a.mu[0]*b.mu[1]+a.mu[1]*b.mu[0]
-        eps[2] = 1j*(a.mu[0]*b.mu[1]-a.mu[1]*b.mu[0])
+    def _vt(a, b, batch):
+        eps = np.zeros((batch,4), dtype=np.complex)
+        eps[:,0] = a.mu[:,0]*b.mu[:,0]+a.mu[:,1]*b.mu[:,1]
+        eps[:,3] = a.mu[:,0]*b.mu[:,0]-a.mu[:,1]*b.mu[:,1]
+        eps[:,1] = a.mu[:,0]*b.mu[:,1]+a.mu[:,1]*b.mu[:,0]
+        eps[:,2] = 1j*(a.mu[:,0]*b.mu[:,1]-a.mu[:,1]*b.mu[:,0])
+        return eps
 
-    def _em(self, p):
+    def _em(self, p, batch):
         pp = WeylSpinor(1, p)
-        eps = self._vt(pp, self.km)
-        eps /= np.sqrt(2)*np.conjugate(self.kp*pp)
+        eps = self._vt(pp, self.km, batch)
+        # print("eps: ", np.shape(eps))
+        # print("kp: ", np.shape(self.kp.mu))
+        # print("pp: ", np.shape(pp.mu))
+        # print("kp*pp: ", np.shape(self.kp*pp))
+        # print("sqrt(2)*conj(kp*pp): ", np.shape(np.sqrt(2)*np.conjugate(self.kp*pp)))
+        eps = np.einsum("bi, b -> bi", eps, 1/(np.sqrt(2)*np.conjugate(self.kp*pp)))
+        # print("new eps: ", np.shape(eps))
         return eps
 
-    def _ep(self, p):
+    def _ep(self, p, batch):
         pm = WeylSpinor(-1, p)
-        eps = self._vt(self.kp, pm)
-        eps /= np.sqrt(2)*np.conjugate(self.km*pm)
+        eps = self._vt(self.kp, pm, batch)
+        eps = np.einsum("bi, b -> bi", eps, 1/(np.sqrt(2)*np.conjugate(self.km*pm)))
+        # eps /= np.sqrt(2)*np.conjugate(self.km*pm)
         return eps
 
-    def _emm(self, p):
-        mass2 = p[0]**2 - np.sum(p[1:]**2)
-        kappa = mass2/(2*(self.k[0]*p[0]-np.sum(self.k[1:]*p[1:])))
-        return self._em(p-kappa*self.k)
+    def _emm(self, p, batch):
+        mass2 = p[:,0]**2 - np.sum(p[:,1:]**2)
+        kappa = mass2/(2*(self.k[:,0]*p[:,0]-np.sum(self.k[:,1:]*p[:,1:])))
+        # print(np.shape(p), np.shape(self.k), np.shape(kappa))
+        return self._em(p-kappa*self.k, batch)
 
-    def _emp(self, p):
-        mass2 = p[0]**2 - np.sum(p[1:]**2)
-        kappa = mass2/(2*(self.k[0]*p[0]-np.sum(self.k[1:]*p[1:])))
-        return self._ep(p-kappa*self.k)
+    def _emp(self, p, batch):
+        mass2 = p[:,0]**2 - np.sum(p[:,1:]**2)
+        kappa = mass2/(2*(self.k[:,0]*p[:,0]-np.sum(self.k[:,1:]*p[:,1:])))
+        return self._ep(p-kappa*self.k, batch)
 
-    def _eml(self, p):
-        mass2 = p[0]**2 - np.sum(p[1:]**2)
-        dot = 2*(self.k[0]*p[0]-np.sum(self.k[1:]*p[1:]))
+    def _eml(self, p, batch):
+        mass2 = p[:,0]**2 - np.sum(p[:,1:]**2)
+        dot = 2*(self.k[:,0]*p[:,0]-np.sum(self.k[:,1:]*p[:,1:]))
         kappa = mass2/dot
         b = p - kappa*self.k
         bm = WeylSpinor(-1, b)
         bp = WeylSpinor(1, b)
-        eps = self._vt(bp, bm) - kappa*self._vt(self.kp, self.km)
+        eps = self._vt(bp, bm, batch) - kappa*self._vt(self.kp, self.km, batch)
         eps /= 2*np.sqrt(mass2)
         return eps
 
