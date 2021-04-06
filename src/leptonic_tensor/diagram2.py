@@ -184,6 +184,8 @@ class Diagram:
                                 # print(current_part, cur)
                                 if(current_part.pid == 23):
                                     continue
+                                # if(current_part.pid == 22):
+                                #     continue
                                 self.momentum[cur-1] = self.momentum[cur1-1] + self.momentum[cur2-1]
                                 sorted_list, index = type_sort(part1, part2, current_part)
                                 # print(index)
@@ -211,7 +213,7 @@ class Diagram:
                                 else:
                                     j2 = self.currents[cur2-1][0]
  
-    
+                                # print(sumidx, np.shape(j1), np.shape(j2))
                                 current = S_pi*np.einsum(sumidx, vertex, j1, j2)
                                 # if cur == 13:
                                 #     print("Vertex: ", vertex)
@@ -373,6 +375,9 @@ def main(run_card):
         # nu_e p+ to nu_e p+. NOTE: Remember to turn on the Z before running.
         # hmunu = HadronicTensor(p2, p4, 4*np.pi*alpha*(sw/(2*cw)-cw/(2*sw))**2, 4*np.pi*alpha*(sw/cw)**2)
         
+        # e+ nu_mu_bar to nue_bar mu+
+        # hmunu = HadronicTensor(p2, p4, 4*np.pi*alpha/(2*sw**2), 0)
+        
         # nu_e n to e-p+
         # hmunu = HadronicTensor(p2, p4, -2*np.pi*alpha/(1-MW**2/MZ**2), 0)
         # switch indices.
@@ -509,7 +514,7 @@ def main(run_card):
             amp_eemumu = 16*np.pi**2*alpha**2*(1+cos_theta_exact**2)
             return amp_eemumu
         
-        def amp_ep(cos_theta_exact, ecm):
+        def amp_ep_photon(cos_theta_exact, ecm):
             amp_ep = 2 * (16*np.pi**2*alpha**2) * (4+(1+cos_theta_exact)**2) / (1-cos_theta_exact)**2
             return amp_ep
         
@@ -525,16 +530,22 @@ def main(run_card):
             amp_nue_p /= (ecm**2/2*(1-cos_theta_exact) + MZ**2)**2 + (MZ**2*WZ**2)
             return amp_nue_p
         
-        # def amp_nue_n(cos_theta_exact, ecm):
-        #     amp_nue_nJ = (np.pi**2)*(alpha**2)/(1-MW**2/MZ**2)**2
-        #     amp_nue_nJ /= (-ecm**2/2*(1-cos_theta_exact)-MW**2)**2+(MW*WW)**2
-        #     amp_nue_nJ *= ecm**4
-        #     return amp_nue_n
+        def amp_nu_mu_bar_eplus(cos_theta_exact, ecm):
+            amp_nu_mu_bar_eplus = 8*np.pi**2*alpha**2/(sw2**2)
+            amp_nu_mu_bar_eplus *= ecm**4
+            amp_nu_mu_bar_eplus /= (ecm**2/2*(1-cos_theta_exact) + MW**2)**2 + (MW**2*WW**2)
+            return amp_nu_mu_bar_eplus
         
+        def amp_ep_Z(cos_theta_exact, ecm):
+            amp_ep_Z = np.pi**2*alpha**2/(cw**4*sw2**2)
+            amp_ep_Z *= ecm**4*cw**8 - 4*ecm**4*sw**2*cw**6 + 2*sw**4*(ecm**4*(1+cos_theta_exact)**2 + 3*ecm**4)*cw**4 - 4*sw**6*(ecm**4*(1+cos_theta_exact)**2 + ecm**4)*cw**2 + sw**8*(2*ecm**4*(1+cos_theta_exact)**2 + 17*ecm**4)
+            amp_ep_Z /= (ecm**2/2*(1-cos_theta_exact) + MZ**2)**2 + (MZ**2*WZ**2)
+            return amp_ep_Z
+            
         # amp_plot_noFunc(cos_theta, amp2, ecm, nevents, nbins)
         # raise
         
-        # M = amp_nue_p(cos_theta_exact, ecm)
+        # M = amp_ep_Z(cos_theta_exact, ecm)
         # # # print(M)
         # ratios = np.divide(amp2, exact_Res[:][0])
         # print(min(ratios), max(ratios))
@@ -547,9 +558,11 @@ def main(run_card):
         # plt.semilogy()
         # plt.show()
         # raise
-        # amp_plot(cos_theta, cos_theta_exact, amp2, amp_ep, ecm, nevents, nbins)
+        # amp_plot(cos_theta, cos_theta_exact, amp2, amp_ep_photon, ecm, nevents, nbins)
         # amp_plot(cos_theta, cos_theta_exact, amp2, amp_nue_nu_mu_bar, ecm, nevents, nbins)
         # amp_plot(cos_theta, cos_theta_exact, amp2, amp_nue_p, ecm, nevents, nbins)
+        
+        # amp_plot(cos_theta, cos_theta_exact, amp2, amp_ep_Z, ecm, nevents, nbins)
         
         # raise
         
@@ -615,13 +628,13 @@ def main(run_card):
     order = len(str(nevents))-1
     
     # amp_plots(cosines, amplitudes, ecm_vals, nevents, nbins, name='amps_ep_1e{}.jpeg'.format(order))
-    amp_plots(cosines, amplitudes, ecm_vals, nevents, nbins, name='amps_nue_nu_mu_bar_1e{}.jpeg'.format(order))
+    amp_plots(cosines, amplitudes, ecm_vals, nevents, nbins, name='amps_nue_nu_mu_bar_1e{}_Test.jpeg'.format(order))
     # amp_plots(cosines, amplitudes, ecm_vals, nevents, nbins, name='amps_nue_p_1e{}.jpeg'.format(order))
     
     # amp_plots_noFunc(cosines, amplitudes, ecm_vals, nevents, nbins, name='amps_ep_gamma_1e{}.pdf'.format(order))
 
     # xsec_plot(ecm_array, xsec, xsec_ana, xsec_err, r'$\sigma(e^- p^+ \rightarrow e^-p^+)$ (pb)' , theta_cut, nevents, name='xsec_ep_1e{}.jpeg'.format(order))
-    xsec_plot(ecm_array, xsec, xsec_ana, xsec_err, r'$\sigma(\nu_e \bar{\nu}_\mu \rightarrow e^- \mu^+)$ (pb)' , theta_cut, nevents, name='xsec_nue_nu_mu_bar_1e{}.jpeg'.format(order))
+    xsec_plot(ecm_array, xsec, xsec_ana, xsec_err, r'$\sigma(\nu_e \bar{\nu}_\mu \rightarrow e^- \mu^+)$ (pb)' , theta_cut, nevents, name='xsec_nue_nu_mu_bar_1e{}_Test.jpeg'.format(order))
     # xsec_plot(ecm_array, xsec, xsec_ana, xsec_err, r'$\sigma(\nu_e p^+ \rightarrow \nu_e p^+)$ (pb)' , theta_cut, nevents, name='xsec_nue_p_1e{}.jpeg'.format(order))
     # xsec_plot_noFunc(ecm_array, xsec, xsec_err, r'$\sigma(e^- p^+ \rightarrow e^- p^+ \gamma)$ (pb)' , theta_cut, nevents, name='xsec_ep_gamma_1e{}.pdf'.format(order))
 
@@ -661,12 +674,12 @@ def xsec_plot(ecm_array, xsec, xsec_ana, xsec_err, process, theta_cut, nevents, 
     props = dict(boxstyle='round', facecolor='antiquewhite', alpha=0.5)
 
     # place a text box in upper left in axes coords
-    ax[0].text(0.68, 0.75, textstr, transform=ax[0].transAxes, fontsize=14,
-                verticalalignment='top', bbox=props)
+    # ax[0].text(0.68, 0.75, textstr, transform=ax[0].transAxes, fontsize=14,
+    #             verticalalignment='top', bbox=props)
     
     # nue p to nue p placement.
-    # ax[0].text(0.68, 0.60, textstr, transform=ax[0].transAxes, fontsize=14,
-    #             verticalalignment='top', bbox=props)
+    ax[0].text(0.68, 0.60, textstr, transform=ax[0].transAxes, fontsize=14,
+                verticalalignment='top', bbox=props)
     
     plt.savefig(name, bbox_inches='tight')
 
@@ -719,7 +732,7 @@ def amp_plots(cosines, amplitudes, ecm_vals, nevents, nbins, name='amps.pdf'):
         axi.yaxis.set_minor_locator(AutoMinorLocator())
         axi.set_xlim(-1, 1)
         axi.set_xlabel(r'$\cos(\theta)$', fontsize=12, labelpad=1)
-        axi.set_ylabel(r'$\sum|\mathcal{M}|^2$', fontsize=12, labelpad=1)
+        axi.set_ylabel(r'$\frac{1}{2}\sum|\mathcal{M}|^2$', fontsize=12, labelpad=1)
         axi.semilogy()
         textstr = '\n'.join((
             r'$\sqrt{s}=%.2f$ GeV' % (ecm_vals[i], ),
@@ -763,11 +776,11 @@ def amp_plot(cos_theta, cos_theta_exact, amp2, amp_func, ecm, nevents, nbins=100
         axi.yaxis.set_minor_locator(AutoMinorLocator())
         axi.set_xlim(-1, 1)
     ax[1].set_xlabel(r'$\cos(\theta)$', fontsize=12, labelpad=1)
-    ax[1].set_ylabel(r'Data/Ana.', fontsize=12, labelpad=1)
-    ax[0].set_ylabel(r'$\frac{1}{2}\sum|\mathcal{M}|^2$', fontsize=12, labelpad=1)
+    ax[1].set_ylabel(r'Num./Ana.', fontsize=12, labelpad=1)
+    ax[0].set_ylabel(r'$\frac{1}{4}\sum|\mathcal{M}|^2$', fontsize=12, labelpad=1)
     ax[0].semilogy()
-    ax[0], weights_true = hist_ep.plot(ax[0], color='firebrick', label='Data')
-    print(np.shape(weights_true), weights_true[0])
+    ax[0], weights_true = hist_ep.plot(ax[0], color='firebrick', label='Numerical')
+    # print(np.shape(weights_true), weights_true[0])
 
     
     textstr = '\n'.join((

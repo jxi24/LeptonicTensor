@@ -9,8 +9,12 @@ IDENTITY = np.diag([1, 1, 1, 1])
 def eps(i, j, k, l):
     return -(i-j)*(i-k)*(i-l)*(j-k)*(j-l)*(k-l)/12
 
+def eps2(i, j, k, l):
+    return np.sign(l-i)*np.sign(k-i)*np.sign(j-i)*np.sign(l-j)*np.sign(k-j)*np.sign(l-k)
+
 
 EPS = np.fromfunction(eps, (4, 4, 4, 4), dtype=int)
+EPS2 = np.fromfunction(eps2, (4, 4, 4, 4), dtype=int)
 
 DELTA = np.array([[1, 0, 0, 0],
                   [0, 1, 0, 0],
@@ -295,7 +299,7 @@ class Spinor:
     def __init__(self, p, mr, hel=0, spin=1, bar=1):
         self.bar = bar
         self.u = np.zeros((p.shape[0], 4), dtype=np.complex)
-        if np.all(p[:, 1:] == 0):
+        if np.all(p[:, 1:] <= 1e-8):
             rte = np.sqrt(p[:, 0]+0j)
             if (mr > 0) ^ (hel < 0):  # u+(p, m) / v-(p, m)
                 self.u[:, 2] = rte
@@ -321,8 +325,9 @@ class Spinor:
                 self.u[:, 0] = sh[:, 1]
                 self.u[:, 1] = -sh[:, 0]
                 self.on = 1
-            m2 = p[:, 0]**2 - np.sum(p[:, 1:]**2)
-            self.u = np.where(m2[:, None] > 1e-8, self.Massive(p, ph, mr, hel, spin), self.u)
+            # m2 = Dot(p, p)
+            # self.u = np.where(m2[:, None] > 1e-8, self.Massive(p, ph, mr, hel, spin), self.u)
+            self.u = self.Massive(p, ph, mr, hel, spin)
 
         if self.bar < 0:
             self.bar = 1
