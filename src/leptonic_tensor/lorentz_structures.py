@@ -298,8 +298,8 @@ class WeylSpinor:
 class Spinor:
     def __init__(self, p, mr, hel=0, spin=1, bar=1):
         self.bar = bar
-        self.u = np.zeros((p.shape[0], 4), dtype=np.complex)
-        if np.all(p[:, 1:] <= 1e-8):
+        self.u = np.zeros((p.shape[0], 4), dtype=np.complex128)
+        if np.all(abs(p[:, 1:]) <= 1e-8):
             rte = np.sqrt(p[:, 0]+0j)
             if (mr > 0) ^ (hel < 0):  # u+(p, m) / v-(p, m)
                 self.u[:, 2] = rte
@@ -327,7 +327,7 @@ class Spinor:
                 self.on = 1
             # m2 = Dot(p, p)
             # self.u = np.where(m2[:, None] > 1e-8, self.Massive(p, ph, mr, hel, spin), self.u)
-            self.u = self.Massive(p, ph, mr, hel, spin)
+            # self.u = self.Massive(p, ph, mr, hel, spin)
 
         if self.bar < 0:
             self.bar = 1

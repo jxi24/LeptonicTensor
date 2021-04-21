@@ -16,20 +16,20 @@ class Rambo:
         self.Z_N = Z[nout]
 
     def cut(self, p):
-        wt = np.ones(p.shape[0])
+        wt = np.ones(p.shape[0], dtype=np.float64)
         for i in range(self.nin, self.nin+self.nout):
             wt *= np.where(Pt(p[:, i, :]) < self.ptMin,
-                          np.zeros(p.shape[0]),
-                          np.ones(p.shape[0]))
+                          np.zeros(p.shape[0], dtype=np.float64),
+                          np.ones(p.shape[0], dtype=np.float64))
         return wt
 
     def __call__(self, p, rans):
-        sump = np.zeros((rans.shape[0], 4))
+        sump = np.zeros((rans.shape[0], 4), dtype=np.float64)
         for i in range(self.nin):
             sump += p[:, i, :]
         ET = np.sqrt(Dot(sump, sump))
 
-        R = np.zeros((rans.shape[0], 4))
+        R = np.zeros((rans.shape[0], 4), dtype=np.float64)
         for i in range(self.nin, self.nin+self.nout):
             ctheta = 2*rans[:, 4*(i-self.nin)] - 1
             stheta = np.sqrt(1-ctheta**2)
@@ -53,5 +53,5 @@ class Rambo:
             p[:, i, 1:] = X*(p[:, i, 1:] + term2)
 
 
-        wgt = np.exp((2*self.nout-4)*np.log(ET)+self.Z_N)/(2*np.pi)**(self.nout*3 - 4)
-        return self.cut(p)[:, None]*wgt
+        wgt = np.exp((2*self.nout-4)*np.log(ET[:,0])+self.Z_N)/(2*np.pi)**(self.nout*3 - 4)
+        return self.cut(p)*wgt

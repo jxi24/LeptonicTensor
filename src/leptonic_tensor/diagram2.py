@@ -291,7 +291,8 @@ def main(run_card):
     ecm_array = np.linspace(energy_range[0], energy_range[1], energy_range[2])
     results = np.zeros_like(ecm_array)
     hbarc2 = 0.38937966e9 
-    alpha = 1/127.9
+    ee = model.parameter_map['ee']
+    alpha = model.parameter_map['aEW']
     MW = model.parameter_map['MW']
     MZ = model.parameter_map['MZ']
     WW = model.parameter_map['WW']
@@ -311,7 +312,8 @@ def main(run_card):
     cosines = []
     nbins = 100
     ecm_vals = [20.0, 60.0, 100.0, 140.0, 180.0, 200.0]
-    theta_cut = 0.95
+    theta_cut = 0.99
+    # theta_cut = 1.0
     for i, ecm in enumerate(ecm_array):
         in_mom = [[-ecm/2, 0, 0, -ecm/2],
                   [-ecm/2, 0, 0, ecm/2]]
@@ -367,13 +369,16 @@ def main(run_card):
         
         ######### HADRONIC TENSORS #########
         # e-p+ to e-p+
-        # hmunu = HadronicTensor(p2, p4, 4*np.pi*alpha, 4*np.pi*alpha)
+        hmunu = HadronicTensor(p2, p4, 4*np.pi*alpha, 4*np.pi*alpha)
         
         # nu_e nu_mu_bar to e- mu+
-        hmunu = HadronicTensor(p2, p4, 2*np.pi*alpha/sw2, 0)
+        # hmunu = HadronicTensor(p2, p4, 2*np.pi*alpha/sw2, 0)
         
         # nu_e p+ to nu_e p+. NOTE: Remember to turn on the Z before running.
         # hmunu = HadronicTensor(p2, p4, 4*np.pi*alpha*(sw/(2*cw)-cw/(2*sw))**2, 4*np.pi*alpha*(sw/cw)**2)
+        # coupling_pl = 4*np.pi*alpha/(sw2*cw*cw)*(1/2-sw2)**2
+        # coupling_pr = 4*np.pi*alpha*sw2/cw/cw
+        # hmunu = HadronicTensor(p2, p4, coupling_pl, coupling_pr)
         
         # e+ nu_mu_bar to nue_bar mu+
         # hmunu = HadronicTensor(p2, p4, 4*np.pi*alpha/(2*sw**2), 0)
@@ -439,10 +444,9 @@ def main(run_card):
             # lmunu2_curr = np.sum(np.array(diagram.currents[12]), axis=0)
             
             
-            # print('curr = ', lmunu2_curr)
+            print('curr = ', lmunu2_curr[0]*t[0])
             lmunu2 += np.einsum('bi, bj -> bij', lmunu2_curr, np.conj(lmunu2_curr))
-            
-            # print(lmunu2)
+            print(np.einsum('bi, bj -> bij', lmunu2_curr, np.conj(lmunu2_curr))[0]*t[0]*t[0])
             
             # amplitude = np.einsum('bi,bi->b', np.sum(np.array(diagram.currents[-2]), axis=0), diagram.currents[-1][0])
             # print(np.shape(amplitude), np.shape(np.einsum('b,b->b', amplitude, np.conj(amplitude))))
@@ -457,8 +461,6 @@ def main(run_card):
             #     amplitude = np.einsum('bi,bi->b', np.sum(np.array(diagram.currents[-2]), axis=0), diagram.currents[-1][0])
                     
             #     results += np.absolute(amplitude[:, None])**2
-        
-        # raise
         # exact_Res = 2*16*alpha**2*np.pi**2*(s**2+u**2)/t**2  # This is 1/4 sum |M|^2. (i.e. already includes Ecm)
         # exact_Res comes from 1/4 sum |M|^2 = 8e^4/s^2*(p1.p3*p2.p4+p1.p4*p2.p3) 
         #                          sum |M|^2 = 32e^4/s^2*(...)
@@ -479,18 +481,41 @@ def main(run_card):
         cos_theta = CosTheta(p3)
         cos_theta_exact = np.linspace(-1, 0.99, nbins+1)
         
-        amp2 = np.abs(np.real(np.einsum('bij,bij->b', lmunu2, hmunu))) # correct sign for nue n, incorrect sign for e-p+.
+        amp2 = np.real(np.einsum('bij,bij->b', lmunu2, hmunu)) # correct sign for nue n, incorrect sign for e-p+.
+        # print(lmunu2)
+        # print(1/alpha)
+        # print(s)
+        # print(t)
+        # print(u)
+        # print(p1[0], p2[0], p3[0], p4[0])
+        # print(hmunu[0])
+        print(lmunu2[0]*t[0]*t[0])
+        print(amp2[0:3])
+        raise
+
+        # lmunu = HadronicTensor(p3,p1,2*np.pi*alpha/sw2,0)
+        # coupling = 4*np.pi*alpha
+        # lmunu = HadronicTensor(p1, p3, coupling, coupling)
+        # lmunu = HadronicTensor(p1, p3, 4*np.pi*alpha, 4*np.pi*alpha)
+        # denom = t**2
+        # numerator = np.einsum('bik,ij,kl -> bjl', lmunu, ls.METRIC_TENSOR, ls.METRIC_TENSOR)
+        # lmunu = numerator / denom[...,None]
+        # ampAnalytic = np.real(np.einsum('bij,bij->b',lmunu,hmunu))
+        # plt.scatter(amp2,ampAnalytic)
+        # plt.savefig('scatter.pdf', bbox_inches='tight')
+        # raise
         
         # e- p to e- p
-        # spinavg = 4
+        spinavg = 4
         
         # nue nu_mu_bar to e- mu+
-        spinavg = 1
+        # spinavg = 1
         
         # nue p to nue p
         # spinavg = 2
         
         amp2 = amp2/spinavg
+        # amp2 = ampAnalytic/spinavg
         
         # e- p to e- p
         # exact_Res = 2*16*alpha**2*np.pi**2*(s**2+u**2)/t**2
@@ -525,9 +550,15 @@ def main(run_card):
             return amp_nue_nu_mu_bar
         
         def amp_nue_p(cos_theta_exact, ecm):
+            s = ecm*ecm
+            t = -s/2*(1-cos_theta_exact)
+            u = -s/2*(1+cos_theta_exact)
+            # print(s, t, u, s+t+u)
             amp_nue_p = 2*np.pi**2*alpha**2/(cw**4*sw2**2)
-            amp_nue_p *= ecm**4*cw**4 - 2*ecm**4*sw**2*cw**2 + sw**4*(ecm**4*(1 + cos_theta_exact)**2 + ecm**4)
-            amp_nue_p /= (ecm**2/2*(1-cos_theta_exact) + MZ**2)**2 + (MZ**2*WZ**2)
+            # amp_nue_p *= ecm**4*cw**4 - 2*ecm**4*sw**2*cw**2 + sw**4*(ecm**4*(1 + cos_theta_exact)**2 + ecm**4)
+            # amp_nue_p /= (ecm**2/2*(1-cos_theta_exact) + MZ**2)**2 + (MZ**2*WZ**2)
+            amp_nue_p *= (s*s*(cw*cw-sw2)**2+4*sw2**2*u*u)
+            amp_nue_p /= ((MZ*WZ)**2+(MZ**2-t)**2)
             return amp_nue_p
         
         def amp_nu_mu_bar_eplus(cos_theta_exact, ecm):
@@ -566,24 +597,39 @@ def main(run_card):
         
         # raise
         
-        
+        flux = 2*ecm**2
         if ecm in ecm_vals:
-            # M = amp_ep(cos_theta_exact, ecm)
-            M = amp_nue_nu_mu_bar(cos_theta_exact, ecm)
+            M = amp_ep_photon(cos_theta_exact, ecm)
+            # M = amp_nue_nu_mu_bar(cos_theta_exact, ecm)
             # M = amp_nue_p(cos_theta_exact, ecm)
             amplitudes.append([M, amp2])
             cosines.append([cos_theta_exact, cos_theta])
+
+            dsigma = amp2*weights/flux*hbarc2
+            dcos = np.diff(cos_theta_exact)[0]
+            vals, bins = np.histogram(cos_theta,
+                                      weights=dsigma/nevents/dcos,
+                                      bins=cos_theta_exact)
+            # print(vals)
+            # print(M/(32*np.pi*ecm**2)*hbarc2)
+            # plt.plot(cos_theta_exact, M/(32*np.pi*ecm**2)*hbarc2)
+            # plt.plot(cos_theta_exact[1:], vals)
+            # plt.yscale('log')
+            # plt.show()
             
         ######### CROSS SECTION CALCULATION #########
         amp2 = np.where(cos_theta <= theta_cut, amp2, 0)
+       
+        results = amp2*weights/flux*hbarc2
+        print(np.sum(M)/(32*np.pi*ecm**2)*hbarc2*np.diff(cos_theta_exact)[0])
+        print(np.mean(results))
+        # print(np.sum(vals*np.diff(bins))*weights[0]/flux*hbarc2)
         
-        flux = 2*ecm**2
-        
-        results = np.einsum("b,bi->b", amp2, weights)/flux*hbarc2
-        
-        # xsec_ana[i] = 1/(32*np.pi*ecm**2)*integrate.quad(amp_ep, -1, theta_cut, args=(ecm,))[0]*hbarc2
-        xsec_ana[i] = 1/(32*np.pi*ecm**2)*integrate.quad(amp_nue_nu_mu_bar, -1, theta_cut, args=(ecm,))[0]*hbarc2
+        xsec_ana[i] = 1/(32*np.pi*ecm**2)*integrate.quad(amp_ep_photon, -1, theta_cut, args=(ecm,))[0]*hbarc2
+        # xsec_ana[i] = 1/(32*np.pi*ecm**2)*integrate.quad(amp_nue_nu_mu_bar, -1, theta_cut, args=(ecm,))[0]*hbarc2
         # xsec_ana[i] = 1/(32*np.pi*ecm**2)*integrate.quad(amp_nue_p, -1, theta_cut, args=(ecm,))[0]*hbarc2
+        print(xsec_ana[0])
+        raise
         
         xsec_err[i] = np.std(results)/np.sqrt(nevents)
         xsec[i] = np.mean(results)
